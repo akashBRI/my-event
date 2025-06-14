@@ -3,45 +3,47 @@ import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import axiosInstance from "@/lib/api";
-// import { useAuth } from "@/context/AuthContext"; // No longer needed for authentication
 import Link from "next/link";
+import { CalendarDays, MapPin, Users, Mail, Phone, Clock } from 'lucide-react'; // Import icons
 
 interface EventOccurrence {
   id: string;
-  startTime: string; // ISO string
-  endTime: string | null; // ISO string
-  location: string | null; // Optional override
+  startTime: string;
+  endTime: string | null;
+  location: string | null;
 }
 
 interface Event {
   id: string;
   name: string;
   description: string | null;
-  // date: string; // Removed - now using occurrences
-  location: string; // Main event location
+  location: string;
+  googleMapsLink: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
   maxCapacity: number | null;
-  occurrences: EventOccurrence[]; // NEW: Array of occurrences
+  createdAt: string;
+  updatedAt: string;
+  occurrences: EventOccurrence[];
+  registrations: Array<{
+    id: string;
+    userId: string;
+    eventId: string;
+    status: string;
+  }>;
 }
 
 export default function EventsPage() {
   const router = useRouter();
-  // const { isAuthenticated, loadingAuth } = useAuth(); // Removed useAuth hook for this page
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Removed authentication check and redirection logic for this page
-    // if (!loadingAuth && !isAuthenticated) {
-    //   router.push("/login");
-    //   return;
-    // }
-
     const fetchEvents = async () => {
       setLoading(true);
       setError(null);
       try {
-        // API now includes occurrences by default in GET /api/events
         const response = await axiosInstance.get<Event[]>("/api/events");
         setEvents(response.data);
       } catch (err: any) {
@@ -53,85 +55,141 @@ export default function EventsPage() {
       }
     };
 
-    // Fetch events without any authentication requirement
     fetchEvents();
-  }, []); // Empty dependency array as no auth state is needed
+  }, []);
 
-  // Removed authentication loading checks
-  // if (loadingAuth || loading) {
-  if (loading) { // Only check for component-specific loading state
+  // Helper to format date for display (e.g., "June 19, 2025")
+  const formatDate = (isoString: string) => {
+    return new Date(isoString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  };
+
+  // Helper to format time for display (e.g., "03:00 PM")
+  const formatTime = (isoString: string) => {
+    return new Date(isoString).toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true,
+    });
+  };
+
+  if (loading) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
-        <div className="text-xl font-semibold text-black">Loading Events...</div>
+      <div className="flex h-screen w-screen items-center justify-center bg-gray-900">
+        <div className="text-xl font-semibold text-white">Loading Events...</div>
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
-        <div className="text-xl font-semibold text-red-600">{error}</div>
+      <div className="flex h-screen w-screen flex-col items-center justify-center bg-gray-900 text-white">
+        <div className="text-xl font-semibold text-red-400">{error}</div>
+        <Link href="/dashboard" className="mt-4 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors">
+          Back to Dashboard
+        </Link>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-8">
-      <div className="w-full max-w-4xl mx-auto bg-white rounded-2xl border border-gray-100 shadow-xl p-8">
-        <h1 className="text-2xl font-semibold text-center text-black mb-6">Available Events</h1>
-
-        {/* This button is now always visible as event creation is public */}
-        <div className="mb-6 text-center">
-            <Link
-                href="/events/create"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-black hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-black"
-            >
-                <svg className="-ml-1 mr-2 h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
-                </svg>
-                Create New Event
-            </Link>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-indigo-900 via-purple-900 to-pink-900 p-4 sm:p-8 md:p-12"
+         style={{ fontFamily: '"Inter", sans-serif' }}>
+      <div className="max-w-7xl mx-auto py-8">
+        <h1 className="text-4xl md:text-5xl font-extrabold text-white text-center mb-10 drop-shadow-lg">
+          Upcoming Events
+        </h1>
 
         {events.length === 0 ? (
-          <p className="text-center text-gray-600">No events found.</p>
+          <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-8 text-center text-white text-xl shadow-lg">
+            No events found. Check back later!
+            <Link href="/events/create" className="block mt-6 text-indigo-300 hover:text-indigo-200 underline">
+                Create a New Event
+            </Link>
+          </div>
         ) : (
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {events.map((event) => (
-              <div key={event.id} className="border border-gray-200 rounded-lg p-4 shadow-sm bg-gray-50 flex flex-col justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-black mb-2">{event.name}</h2>
-                  <p className="text-sm text-gray-600 mb-2">{event.description || "No description."}</p>
-                  <p className="text-sm text-gray-700">
-                    <strong>Main Location:</strong> {event.location}
+              <div
+                key={event.id}
+                className="bg-white rounded-xl shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:-translate-y-1 overflow-hidden"
+              >
+                <div className="p-6">
+                  <h2 className="text-2xl font-bold text-gray-900 mb-3 leading-tight">
+                    {event.name}
+                  </h2>
+                  <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+                    {event.description || "No description provided."}
                   </p>
-                  {event.maxCapacity && (
-                    <p className="text-sm text-gray-700">
-                      <strong>Capacity:</strong> {event.maxCapacity}
-                    </p>
-                  )}
 
-                  {/* Display Event Occurrences */}
-                  {event.occurrences && event.occurrences.length > 0 && (
-                    <div className="mt-2 text-sm text-gray-700">
-                      <strong className="block mb-1">Occurrences:</strong>
-                      <ul className="list-disc list-inside space-y-1">
-                        {event.occurrences.map((occ, occIndex) => (
-                          <li key={occ.id || occIndex} className="text-xs">
-                            {new Date(occ.startTime).toLocaleString()}
-                            {occ.endTime ? ` - ${new Date(occ.endTime).toLocaleTimeString()}` : ''}
-                            {occ.location && occ.location !== event.location ? ` (${occ.location})` : ''}
-                          </li>
-                        ))}
-                      </ul>
+                  <div className="space-y-2 text-gray-700 text-sm mb-4">
+                    <div className="flex items-center">
+                      <MapPin size={16} className="text-blue-500 mr-2 flex-shrink-0" />
+                      <span>{event.location}</span>
                     </div>
-                  )}
 
-                </div>
-                <div className="mt-4">
+                    {/* Displaying occurrences as dates/times */}
+                    {event.occurrences && event.occurrences.length > 0 && (
+                      <div className="flex items-start">
+                        <CalendarDays size={16} className="text-purple-500 mr-2 flex-shrink-0 mt-1" />
+                        <div className="flex flex-col">
+                          {event.occurrences
+                            .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime())
+                            .slice(0, 2) // Show up to 2 occurrences directly on the card
+                            .map((occ, index) => (
+                              <span key={index} className="leading-snug">
+                                {formatDate(occ.startTime)}
+                                <span className="flex items-center text-xs ml-4">
+                                  <Clock size={12} className="inline mr-1" />
+                                  {formatTime(occ.startTime)}
+                                  {occ.endTime ? ` - ${formatTime(occ.endTime)}` : ''}
+                                  {occ.location && occ.location !== event.location ? ` (${occ.location})` : ''}
+                                </span>
+                              </span>
+                            ))}
+                          {event.occurrences.length > 2 && (
+                            <span className="text-xs text-gray-500 mt-1">
+                              +{event.occurrences.length - 2} more sessions
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {event.maxCapacity && (
+                      <div className="flex items-center">
+                        <Users size={16} className="text-green-500 mr-2 flex-shrink-0" />
+                        <span>
+                          Capacity: {event.registrations?.length || 0} / {event.maxCapacity}
+                          {event.registrations?.length >= event.maxCapacity && (
+                            <span className="text-red-500 font-semibold ml-1">(Full)</span>
+                          )}
+                        </span>
+                      </div>
+                    )}
+                    {event.contactEmail && (
+                      <div className="flex items-center">
+                        <Mail size={16} className="text-orange-500 mr-2 flex-shrink-0" />
+                        <a href={`mailto:${event.contactEmail}`} className="hover:underline">
+                          {event.contactEmail}
+                        </a>
+                      </div>
+                    )}
+                    {event.contactPhone && (
+                      <div className="flex items-center">
+                        <Phone size={16} className="text-teal-500 mr-2 flex-shrink-0" />
+                        <a href={`tel:${event.contactPhone}`} className="hover:underline">
+                          {event.contactPhone}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
                   <Link
                     href={`/events/${event.id}`}
-                    className="block w-full text-center py-2 px-4 rounded-md bg-black text-white text-sm hover:bg-gray-800 transition-colors"
+                    className="block w-full text-center bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md transition-colors duration-200 mt-4 shadow-lg hover:shadow-xl"
                   >
                     View Details
                   </Link>
@@ -140,10 +198,10 @@ export default function EventsPage() {
             ))}
           </div>
         )}
-        <div className="mt-8 text-center">
-            {/* Link to profile might still require auth, consider changing if entire app is public */}
-            <Link href="/profile" className="text-sm text-gray-600 hover:underline">
-                Back to Profile
+
+        <div className="text-center mt-12">
+            <Link href="/" className="inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                Back to Dashboard
             </Link>
         </div>
       </div>

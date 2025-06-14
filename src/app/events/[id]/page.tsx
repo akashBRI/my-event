@@ -115,7 +115,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
           </div>
           {/* Logo/Name */}
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 uppercase">BLUE RHINE INDUSTRIES</h1>
+            <h1 className="text-2xl font-bold text-gray-900 uppercase">BLUE RHINE INDUSTRIES LLC</h1>
             {/* You can replace this with an image tag for an actual logo */}
             {/* <img src="/path/to/your/logo.png" alt="Blue Rhine Industries Logo" className="h-10 mx-auto" /> */}
           </div>

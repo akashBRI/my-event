@@ -262,7 +262,7 @@ export default function PublicRegisterPage() {
             <div className="w-2 h-2 rounded-full bg-blue-600"></div>
           </div>
           <div className="text-center">
-            <h1 className="text-xl font-bold text-gray-900 uppercase">BLUE RHINE INDUSTRIES</h1>
+            <h1 className="text-xl font-bold text-gray-900 uppercase">BLUE RHINE INDUSTRIES LLC</h1>
           </div>
           <div className="flex space-x-1">
             <div className="w-2 h-2 rounded-full bg-blue-600"></div>
@@ -393,7 +393,7 @@ export default function PublicRegisterPage() {
         </div>
 
         {/* Register Button */}
-        <div className="text-center mb-8 px-4 sm:px-8">
+        <div className="text-center mb-0 px-4 sm:px-8">
           <button
             onClick={onRegister}
             disabled={buttonDisabled || loading}
@@ -403,25 +403,6 @@ export default function PublicRegisterPage() {
               <svg className="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
             ) : 'Register Now'}
           </button>
-        </div>
-
-        {/* Footer Links */}
-        <div className="text-center text-sm text-gray-600 space-y-1">
-          <p>
-            Already have an account?{" "}
-            <Link href="/login" className="font-semibold text-blue-600 hover:underline">
-              Sign in
-            </Link>
-          </p>
-          <p>
-            Need your pass again?{" "}
-            <Link href="/request-pass" className="font-semibold text-blue-600 hover:underline">
-              Request it here
-            </Link>
-          </p>
-          <Link href="/events" className="block mt-4 font-semibold text-gray-600 hover:underline">
-            Back to Events List
-          </Link>
         </div>
       </div>
     </div>

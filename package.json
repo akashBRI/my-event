@@ -2,12 +2,12 @@
   "name": "exchange-board",
   "version": "0.1.0",
   "private": true,
-"scripts": {
-  "dev": "next dev",
-  "build": "prisma generate && next build",
-  "start": "next start",
-  "lint": "next lint"
-},
+  "scripts": {
+    "dev": "next dev",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
   "dependencies": {
     "@prisma/client": "^6.9.0",
     "@types/node": "20.3.2",
@@ -20,6 +20,7 @@
     "eslint": "8.43.0",
     "eslint-config-next": "13.4.7",
     "jsonwebtoken": "^9.0.2",
+    "lucide-react": "^0.515.0",
     "mongoose": "^7.3.1",
     "next": "13.4.7",
     "nodemailer": "^6.9.3",
