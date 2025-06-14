@@ -6,10 +6,10 @@ import QRCode from 'qrcode';
 
 export async function POST(req: Request) {
   try {
-    const { firstName, lastName, email, phone, company, eventId } = await req.json();
+    const { firstName, lastName, email, phone, company, eventId, selectedOccurrenceIds } = await req.json();
 
-    if (!firstName || !lastName || !email || !phone || !eventId) {
-      return NextResponse.json({ error: 'First Name, Last Name, Email, Phone, and Event are required for registration.' }, { status: 400 });
+    if (!firstName || !lastName || !email || !phone || !eventId || !selectedOccurrenceIds || !Array.isArray(selectedOccurrenceIds) || selectedOccurrenceIds.length === 0) {
+      return NextResponse.json({ error: 'First Name, Last Name, Email, Phone, Event, and at least one session are required for registration.' }, { status: 400 });
     }
 
     // 1. Find or Create User
@@ -24,22 +24,18 @@ export async function POST(req: Request) {
           lastName,
           email,
           phone,
-          company, // Can be null if not provided in public form
-          emailVerified: new Date(), // Consider this verified via this registration process
-          // Password would be null for public registrations unless they set one later
+          company,
+          emailVerified: new Date(),
         },
       });
     } else {
-      // If user exists, update their details with provided public registration info
-      // You might add logic to only update if fields are currently null or empty
       user = await prisma.user.update({
         where: { id: user.id },
         data: {
-          firstName: user.firstName || firstName, // Only update if existing is null
+          firstName: user.firstName || firstName,
           lastName: user.lastName || lastName,
           phone: user.phone || phone,
           company: user.company || company,
-          // Do not update email or emailVerified here usually
         },
       });
     }
@@ -75,10 +71,9 @@ export async function POST(req: Request) {
     // 4. Generate dynamic passId
     let newPassNumber = 1000; // Starting number for passId
 
-    // Find the latest passId to determine the next number
     const latestRegistration = await prisma.eventRegistration.findFirst({
       orderBy: {
-        passId: 'desc', // Order by passId in descending order to get the latest
+        passId: 'desc',
       },
       select: {
         passId: true,
@@ -94,9 +89,9 @@ export async function POST(req: Request) {
 
     const passId = `BRI-${newPassNumber}`;
 
-    // The QR code data can be a link to the view-pass page or directly encoded data
-    const qrCodeData = `${process.env.NEXT_PUBLIC_APP_URL}/view-pass/${passId}`; // Link to view pass page
+    const qrCodeData = `${process.env.NEXT_PUBLIC_APP_URL}/view-pass/${passId}`;
 
+    // 5. Create Event Registration
     const newRegistration = await prisma.eventRegistration.create({
       data: {
         userId: user.id,
@@ -104,11 +99,30 @@ export async function POST(req: Request) {
         passId: passId,
         qrCodeData: qrCodeData,
         status: "registered",
+        selectedOccurrences: {
+          create: selectedOccurrenceIds.map((occId: string) => ({
+            occurrence: {
+              connect: { id: occId }
+            }
+          })),
+        },
       },
-      include: { event: true, user: true } // Include event and user for email details
+      include: {
+        user: true,
+        event: {
+          include: {
+            occurrences: true, // Crucial: Include event occurrences for email content
+          }
+        },
+        selectedOccurrences: { // Crucial: Include selected occurrences for email content
+          include: {
+            occurrence: true,
+          }
+        }
+      }
     });
 
-    // 5. Send Email Confirmation with PDF Link
+    // 6. Send Email Confirmation with PDF Link
     const pdfLink = `${process.env.NEXT_PUBLIC_APP_URL}/api/event-pass-pdf/${newRegistration.passId}`;
     await sendEventPassEmail(user.email, event.name, newRegistration, pdfLink);
 
@@ -118,10 +132,15 @@ export async function POST(req: Request) {
         registration: {
           passId: newRegistration.passId,
           eventName: event.name,
-          eventDate: event.date,
           eventLocation: event.location,
           qrCodeLink: qrCodeData,
-          pdfLink: pdfLink
+          pdfLink: pdfLink,
+          selectedOccurrences: newRegistration.selectedOccurrences.map((so: { id: string; occurrence: { id: string; startTime: Date; endTime: Date | null; location: string | null; } }) => ({
+            id: so.occurrence.id,
+            startTime: so.occurrence.startTime,
+            endTime: so.occurrence.endTime,
+            location: so.occurrence.location
+          }))
         }
       },
       { status: 201 }
