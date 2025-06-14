@@ -1,7 +1,7 @@
 // src/app/api/registrations/resend-email/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { sendRegistrationEmail } from '@/lib/emailService';
+import { sendEventPassEmail } from '@/lib/emailService'; // Changed to sendEventPassEmail
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
 // This API route handles resending the registration email for a given registration ID.
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
     }
 
     // Fetch the full registration details, including all necessary related data
-    // that the `sendRegistrationEmail` function expects.
+    // that the `sendEventPassEmail` function expects.
     const registration = await prisma.eventRegistration.findUnique({
       where: { id: registrationId },
       include: {
@@ -38,9 +38,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Registration not found.' }, { status: 404 });
     }
 
-    // Call the email service to send the registration email.
-    // The `registration` object includes `qrCodeData` and `passId` as well.
-    //await sendRegistrationEmail(registration); // This line is causing the type error due to mismatched interface definitions
+    // Prepare arguments for sendEventPassEmail
+    const toEmail = registration.user.email;
+    const eventName = registration.event.name;
+    const pdfLink = `${process.env.NEXT_PUBLIC_APP_URL}/api/event-pass-pdf/${registration.passId}`;
+
+    // Call the email service to send the registration email with all required arguments.
+    console.log(registration);
+    
+    await sendEventPassEmail(toEmail, eventName, registration, pdfLink);
 
     // Return a success response.
     return NextResponse.json({ message: 'Registration email resent successfully.' }, { status: 200 });
