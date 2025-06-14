@@ -1,5 +1,6 @@
 // src/lib/emailService.ts
 import nodemailer from 'nodemailer';
+import QRCode from 'qrcode';
 
 // Define the occurrence type for email service
 interface EventOccurrenceForEmail {
@@ -59,73 +60,134 @@ export const sendEventPassEmail = async (
   registration: EventRegistrationForEmail,
   pdfLink: string // Direct link to the generated PDF pass
 ) => {
-  const { user, event, passId, qrCodeData, selectedOccurrences } = registration;
+  const { user, event, passId } = registration; // Removed qrCodeData from destructuring as it's generated here
 
-  // Construct QR Code Image URL for embedding in email (using a public QR API)
-  const qrCodeImageUrl = qrCodeData
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(qrCodeData)}`
-    : null;
+  // Dynamically generate QR Code data URL for the email
+  const passUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/event-pass-pdf/${passId}`;
+  const qrCodeImage = await QRCode.toDataURL(passUrl);
+  
 
-  // Format selected occurrences for display in email
-  const formattedSelectedOccurrences = selectedOccurrences.map((so) => {
-    const occ = so.occurrence;
-    const startTime = new Date(occ.startTime);
-    const endTime = occ.endTime ? new Date(occ.endTime) : null;
+  console.log('QR Code Data generated for email:', qrCodeImage ? 'present' : 'missing');
+  if (qrCodeImage) console.log('QR Code Data Length:', qrCodeImage.length);
 
-    const dateStr = startTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-    let timeStr = startTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
-    if (endTime) {
-      timeStr += ` - ${endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
-    }
-    const locationStr = occ.location && occ.location !== event.location ? ` (${occ.location})` : '';
-    return `${dateStr} ${timeStr}${locationStr}`;
-  }).join('<br>');
+  const userName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+  const eventLocation = event.location;
 
+  let occurrencesHtml = '';
+  if (registration.selectedOccurrences && registration.selectedOccurrences.length > 0) {
+    occurrencesHtml = `
+      <p style="font-size: 16px; color: #333333; margin-bottom: 15px; font-weight: bold;">Your Registered Sessions:</p>
+      <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 20px;">
+          <tr>
+              <td style="padding: 10px; background-color: #f9f9f9; border-radius: 8px;">
+                  <ul style="list-style: none; padding: 0; margin: 0;">
+    `;
+    registration.selectedOccurrences.sort((a, b) => a.occurrence.startTime.getTime() - b.occurrence.startTime.getTime())
+      .forEach(selectedOcc => {
+        const occ = selectedOcc.occurrence;
+        const startTime = occ.startTime.toLocaleString('en-US', {
+          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+          hour: '2-digit', minute: '2-digit', hour12: true
+        });
+        let endTime = '';
+        if (occ.endTime) {
+          endTime = ` - ${occ.endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
+        }
+        const locationDetail = occ.location && occ.location !== registration.event.location ? ` (${occ.location})` : '';
+        occurrencesHtml += `
+          <li style="margin-bottom: 10px; font-size: 14px; color: #555555; line-height: 1.5;">
+            <strong style="color: #007bff;">&#9200; Date & Time:</strong> ${startTime}${endTime}<br/>
+            <strong style="color: #007bff;">&#128205; Location:</strong> ${eventLocation}${locationDetail}
+          </li>
+        `;
+      });
+    occurrencesHtml += `
+                  </ul>
+              </td>
+          </tr>
+      </table>
+    `;
+  }
 
   const mailOptions = {
     from: process.env.EMAIL_FROM, // Your sender email address
     to: toEmail,
-    subject: `Your Event Pass for ${event.name}`,
+    subject: `Reminder: Your Registration for ${eventName}`,
     html: `
-      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-        <h2 style="color: #0056b3;">Hello ${user.firstName || 'Attendee'},</h2>
-        <p>Thank you for registering for <strong>${event.name}</strong>!</p>
-        <p>Your registration is complete, and here are your event pass details:</p>
-        
-        <div style="background-color: #f4f4f4; padding: 20px; border-radius: 8px; margin-top: 20px;">
-          <h3 style="color: #0056b3;">Event Pass Information:</h3>
-          <p><strong>Event Name:</strong> ${event.name}</p>
-          <p><strong>Attendee Name:</strong> ${user.firstName} ${user.lastName}</p>
-          <p><strong>Event Location:</strong> ${event.location}</p>
-          <p><strong>Pass ID:</strong> ${passId}</p>
+        <div style="font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 600px; margin: auto; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; background-color: #ffffff;">
           
-          ${selectedOccurrences.length > 0 ? `
-            <p style="margin-top: 15px;"><strong>Your Registered Session(s):</strong></p>
-            <p>${formattedSelectedOccurrences}</p>
-          ` : ''}
+          <div style="background-color: #007bff; padding: 25px; text-align: center;">
+            <h1 style="color: #ffffff; font-size: 28px; margin: 0; line-height: 1.2;">Your Event Pass & Reminder</h1>
+            <p style="color: #ffffff; font-size: 16px; margin-top: 10px; opacity: 0.9;">Don't miss out on ${eventName}!</p>
+          </div>
 
-          ${qrCodeImageUrl ? `
-            <p style="margin-top: 15px;"><strong>Your QR Code for Check-in:</strong></p>
-            <img src="${qrCodeImageUrl}" alt="QR Code" style="display: block; margin: 10px auto; border: 1px solid #ddd; border-radius: 4px;">
-          ` : ''}
+          <div style="padding: 30px 25px; text-align: left; color: #333333;">
+            <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">Dear ${userName},</p>
+            <p style="font-size: 16px; line-height: 1.6; margin-bottom: 20px;">
+              This is a friendly reminder about your upcoming registration for the <strong>${eventName}</strong> event.
+              We're excited to have you join us!
+            </p>
 
-          <p style="margin-top: 20px;">
-            You can view or download your detailed event pass (PDF) here:<br>
-            <a href="${pdfLink}" style="display: inline-block; padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px; margin-top: 10px;">
-              Download Your Pass PDF
-            </a>
-          </p>
+            <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom: 30px;">
+                <tr>
+                    <td style="padding: 15px; border-left: 5px solid #ffc107; background-color: #fffde7; border-radius: 8px;">
+                        <p style="font-size: 18px; font-weight: bold; color: #333333; margin-bottom: 10px;">Event Details:</p>
+                        <ul style="list-style: none; padding: 0; margin: 0;">
+                            <li style="margin-bottom: 8px; font-size: 15px; color: #555555;">
+                                <strong style="color: #007bff;">&#128197; Event Name:</strong> ${eventName}
+                            </li>
+                            <li style="margin-bottom: 8px; font-size: 15px; color: #555555;">
+                                <strong style="color: #007bff;">&#128205; Main Location:</strong> ${eventLocation}
+                            </li>
+                            ${registration.event.googleMapsLink ? `
+                            <li style="margin-bottom: 8px; font-size: 15px; color: #555555;">
+                                <strong style="color: #007bff;">&#128279; View on Map:</strong> 
+                                <a href="${registration.event.googleMapsLink}" style="color: #007bff; text-decoration: none; word-break: break-all;">
+                                    ${registration.event.googleMapsLink}
+                                </a>
+                            </li>` : ''}
+                            ${registration.event.contactEmail ? `
+                            <li style="margin-bottom: 8px; font-size: 15px; color: #555555;">
+                                <strong style="color: #007bff;">&#9993; Contact Email:</strong> 
+                                <a href="mailto:${registration.event.contactEmail}" style="color: #007bff; text-decoration: none;">${registration.event.contactEmail}</a>
+                            </li>` : ''}
+                            ${registration.event.contactPhone ? `
+                            <li style="margin-bottom: 8px; font-size: 15px; color: #555555;">
+                                <strong style="color: #007bff;">&#128222; Contact Phone:</strong> ${registration.event.contactPhone}
+                            </li>` : ''}
+                        </ul>
+                    </td>
+                </tr>
+            </table>
+
+            ${occurrencesHtml}
+
+            <p style="font-size: 16px; color: #333333; margin-top: 25px; margin-bottom: 15px; text-align: center; font-weight: bold;">Your Event Pass:</p>
+            <div style="text-align: center; margin-bottom: 30px;">
+              <p style="font-size: 15px; color: #555555; margin-bottom: 10px;">Please present this QR code at the entrance for quick check-in:</p>
+              <img src="${qrCodeImage}" alt="QR Code for Event Pass" style="width: 180px; height: 180px; border: 4px solid #007bff; border-radius: 10px; display: block; margin: 0 auto;">
+              <p style="font-size: 14px; color: #555555; margin-top: 15px;"><strong>Pass ID:</strong> <span style="color: #007bff;">${passId}</span></p>
+              <a href="${pdfLink}" style="display: inline-block; background-color: #dc3545; color: #ffffff; padding: 12px 25px; border-radius: 8px; text-decoration: none; font-weight: bold; margin-top: 20px; transition: background-color 0.3s ease;">
+                Download PDF Pass
+              </a>
+            </div>
+
+            <p style="font-size: 16px; line-height: 1.6; margin-top: 30px;">
+              We can't wait to see you! If you have any questions, please don't hesitate to reach out.
+            </p>
+            <p style="font-size: 16px; line-height: 1.6; margin-top: 20px;">Best regards,<br/>The Event Team</p>
+          </div>
+
+          <div style="background-color: #f4f4f4; padding: 20px; text-align: center; font-size: 12px; color: #777777; border-top: 1px solid #e0e0e0;">
+            This is an automated email. Please do not reply to this message.
+          </div>
         </div>
-
-        <p style="margin-top: 20px;">We look forward to seeing you there!</p>
-        <p>Best regards,<br>The ${event.name} Team</p>
-      </div>
-    `,
+      `,
   };
 
   try {
     await transporter.sendMail(mailOptions);
-    console.log(`Event pass email sent to ${toEmail} for pass ${passId}`);
+    console.log(`Reminder email sent to ${toEmail} for event ${eventName}`);
   } catch (error) {
     console.error(`Failed to send email to ${toEmail}:`, error);
     throw new Error('Failed to send event pass email.');
