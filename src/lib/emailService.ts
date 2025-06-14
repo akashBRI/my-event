@@ -63,7 +63,7 @@ export const sendEventPassEmail = async (
   const { user, event, passId } = registration; // Removed qrCodeData from destructuring as it's generated here
 
   // Dynamically generate QR Code data URL for the email
-  const passUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/event-pass-pdf/${passId}`;
+  const passUrl = `https://bri-event.vercel.app/api/event-pass-pdf/${passId}`;
   const qrCodeImage = await QRCode.toDataURL(passUrl);
   
 
