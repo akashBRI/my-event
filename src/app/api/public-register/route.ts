@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import QRCode from 'qrcode'; // For QR code generation
 import { sendRegistrationEmail } from '@/lib/emailService'; // Corrected import: sendRegistrationEmail
-import { PrismaClient } from '@prisma/client'; // Import PrismaClient for typing
+import { PrismaClient, Prisma } from '@prisma/client'; // Import PrismaClient and Prisma namespace for typing
 
 // Define a type for occurrence data as it exists in the database
 interface EventOccurrence {
@@ -112,8 +112,9 @@ export async function POST(req: Request) {
     const qrCodeDataUrl = await QRCode.toDataURL(passUrl); // Generates QR code as a base64 data URL from the URL
 
     // 6. Create Event Registration and link selected occurrences in a transaction
-    const newRegistration = await prisma.$transaction(async (prisma: PrismaClient) => { // Added PrismaClient type
-      const reg = await prisma.eventRegistration.create({
+    // Correctly type the 'tx' parameter using Prisma.TransactionClient
+    const newRegistration = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const reg = await tx.eventRegistration.create({ // Use `tx` here
         data: {
           userId: user.id,
           eventId: eventId,
