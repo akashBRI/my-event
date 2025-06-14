@@ -1,38 +1,18 @@
 // src/app/api/public-register/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import QRCode from 'qrcode'; // For QR code generation
-import { sendRegistrationEmail } from '@/lib/emailService'; // Import the email service
-
-// Function to generate a unique pass ID
-function generatePassId(): string {
-  // Simple UUID-like string generation
-  return 'PASS-' + Math.random().toString(36).substring(2, 11).toUpperCase();
-}
+import { sendEventPassEmail } from '@/lib/emailService';
+import QRCode from 'qrcode';
 
 export async function POST(req: Request) {
   try {
-    const { firstName, lastName, email, phone, company, eventId, selectedOccurrenceIds } = await req.json();
+    const { firstName, lastName, email, phone, company, eventId } = await req.json();
 
-    // 1. Basic Validation
-    if (!firstName || !lastName || !email || !phone || !company || !eventId || !selectedOccurrenceIds || selectedOccurrenceIds.length === 0) {
-      return NextResponse.json({ error: 'All required fields (First Name, Last Name, Email, Phone, Company, Event, and at least one Session) must be provided.' }, { status: 400 });
+    if (!firstName || !lastName || !email || !phone || !eventId) {
+      return NextResponse.json({ error: 'First Name, Last Name, Email, Phone, and Event are required for registration.' }, { status: 400 });
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json({ error: 'Invalid email format.' }, { status: 400 });
-    }
-
-    // Validate phone format (simple check for digits, spaces, +, -)
-    const phoneRegex = /^[0-9\s\-\+()]+$/;
-    if (!phoneRegex.test(phone)) {
-        return NextResponse.json({ error: 'Invalid phone number format.' }, { status: 400 });
-    }
-
-
-    // 2. Check if user already exists or create a new user (or link to existing)
+    // 1. Find or Create User
     let user = await prisma.user.findUnique({
       where: { email },
     });
@@ -40,28 +20,31 @@ export async function POST(req: Request) {
     if (!user) {
       user = await prisma.user.create({
         data: {
-          email,
           firstName,
           lastName,
+          email,
           phone,
-          company,
+          company, // Can be null if not provided in public form
+          emailVerified: new Date(), // Consider this verified via this registration process
+          // Password would be null for public registrations unless they set one later
         },
       });
     } else {
-      // If user exists, update their profile with potentially new info
+      // If user exists, update their details with provided public registration info
+      // You might add logic to only update if fields are currently null or empty
       user = await prisma.user.update({
         where: { id: user.id },
         data: {
-          firstName: firstName || user.firstName,
-          lastName: lastName || user.lastName,
-          phone: phone || user.phone,
-          company: company || user.company,
+          firstName: user.firstName || firstName, // Only update if existing is null
+          lastName: user.lastName || lastName,
+          phone: user.phone || phone,
+          company: user.company || company,
+          // Do not update email or emailVerified here usually
         },
       });
     }
 
-
-    // 3. Check if user is already registered for this specific event
+    // 2. Check if already registered for this event
     const existingRegistration = await prisma.eventRegistration.findUnique({
       where: {
         userId_eventId: {
@@ -72,84 +55,80 @@ export async function POST(req: Request) {
     });
 
     if (existingRegistration) {
-      return NextResponse.json({ error: 'You are already registered for this event.' }, { status: 409 });
+      return NextResponse.json({ message: 'You are already registered for this event.', registration: existingRegistration }, { status: 200 });
     }
 
-    // 4. Validate selected occurrences
+    // 3. Check event capacity
     const event = await prisma.event.findUnique({
       where: { id: eventId },
-      include: {
-        occurrences: true,
-      },
+      include: { registrations: true },
     });
 
     if (!event) {
       return NextResponse.json({ error: 'Event not found.' }, { status: 404 });
     }
 
-    const validOccurrences = event.occurrences.filter(occ => selectedOccurrenceIds.includes(occ.id));
-    if (validOccurrences.length !== selectedOccurrenceIds.length) {
-      return NextResponse.json({ error: 'One or more selected sessions are invalid for this event.' }, { status: 400 });
+    if (event.maxCapacity && event.registrations.length >= event.maxCapacity) {
+      return NextResponse.json({ error: 'Event has reached its maximum capacity.' }, { status: 400 });
     }
 
-    // 5. Generate unique Pass ID and QR Code Data (now a URL)
-    const passId = generatePassId();
-    // QR code will now encode the direct URL to the PDF pass
-    const passUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/event-pass-pdf/${passId}`;
-    const qrCodeDataUrl = await QRCode.toDataURL(passUrl); // Generates QR code as a base64 data URL from the URL
+    // 4. Generate dynamic passId
+    let newPassNumber = 1000; // Starting number for passId
 
-    // 6. Create Event Registration and link selected occurrences in a transaction
-    const newRegistration = await prisma.$transaction(async (prisma) => {
-      const reg = await prisma.eventRegistration.create({
-        data: {
-          userId: user.id,
-          eventId: eventId,
-          passId: passId,
-          qrCodeData: qrCodeDataUrl, // Store the base64 URL of the QR code
-          status: 'registered', // Default status for new public registrations
-          selectedOccurrences: {
-            create: selectedOccurrenceIds.map((occId: string) => ({
-              occurrence: {
-                connect: { id: occId }
-              }
-            })),
-          },
-        },
-        include: {
-          user: true,
-          event: {
-            include: {
-              occurrences: true // Include all event occurrences
-            }
-          },
-          selectedOccurrences: {
-            include: {
-              occurrence: true // Include details of the selected occurrences
-            }
-          }
-        },
-      });
-
-      return reg;
+    // Find the latest passId to determine the next number
+    const latestRegistration = await prisma.eventRegistration.findFirst({
+      orderBy: {
+        passId: 'desc', // Order by passId in descending order to get the latest
+      },
+      select: {
+        passId: true,
+      },
     });
 
-    // 7. Send registration confirmation email
-    if (newRegistration) {
-      await sendRegistrationEmail(newRegistration);
+    if (latestRegistration && latestRegistration.passId) {
+      const lastNumericPart = parseInt(latestRegistration.passId.replace('BRI-', ''));
+      if (!isNaN(lastNumericPart)) {
+        newPassNumber = lastNumericPart + 1;
+      }
     }
 
-    return NextResponse.json({ message: 'Registration successful! Check your email for pass details.', registrationId: newRegistration.id, passId: newRegistration.passId }, { status: 201 });
+    const passId = `BRI-${newPassNumber}`;
 
-  } catch (error: any) {
-    console.error('Public registration failed:', error);
+    // The QR code data can be a link to the view-pass page or directly encoded data
+    const qrCodeData = `${process.env.NEXT_PUBLIC_APP_URL}/view-pass/${passId}`; // Link to view pass page
 
-    if (error.code === 'P2002' && error.meta?.target === 'EventRegistration_userId_eventId_key') {
-      return NextResponse.json({ error: 'You are already registered for this event.' }, { status: 409 });
-    }
-    // Handle other Prisma or general errors
-    if (error instanceof Error) {
-      return NextResponse.json({ error: `An unexpected error occurred: ${error.message}` }, { status: 500 });
-    }
+    const newRegistration = await prisma.eventRegistration.create({
+      data: {
+        userId: user.id,
+        eventId: eventId,
+        passId: passId,
+        qrCodeData: qrCodeData,
+        status: "registered",
+      },
+      include: { event: true, user: true } // Include event and user for email details
+    });
+
+    // 5. Send Email Confirmation with PDF Link
+    const pdfLink = `${process.env.NEXT_PUBLIC_APP_URL}/api/event-pass-pdf/${newRegistration.passId}`;
+    await sendEventPassEmail(user.email, event.name, newRegistration, pdfLink);
+
+    return NextResponse.json(
+      {
+        message: 'Registration successful! Your pass details have been sent to your email.',
+        registration: {
+          passId: newRegistration.passId,
+          eventName: event.name,
+          eventDate: event.date,
+          eventLocation: event.location,
+          qrCodeLink: qrCodeData,
+          pdfLink: pdfLink
+        }
+      },
+      { status: 201 }
+    );
+
+  } catch (error) {
+    console.error('Public registration error:', error);
     return NextResponse.json({ error: 'Something went wrong during registration.' }, { status: 500 });
   }
 }

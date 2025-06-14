@@ -125,7 +125,7 @@ export async function GET(req: Request, { params }: Params) {
             color: rgb(0.1, 0.1, 0.4), // Dark blue
         });
         targetPage.drawText('YOU ARE INVITED TO AV INTEGRATION DISCOVERY DAY', {
-            x: offsetX + badgeQuadWidth / 2,
+            x: offsetX + badgeQuadWidth / 2, // This one is okay with textAlign: 'center'
             y: (offsetY + badgeQuadHeight) - internalPadding - headerImageHeightDesired / 2 + 10,
             font: regBoldFont,
             size: 8,
@@ -146,30 +146,29 @@ export async function GET(req: Request, { params }: Params) {
       
       let currentY = (offsetY + badgeQuadHeight) - internalPadding - headerImageHeightDesired - 50; // Start Y after header image and some gap
 
-      // Attendee Name (Uppercase, Centered)
-      const count = offsetX + badgeQuadWidth / 2;
+      // Attendee Name (Uppercase, Centered manually)
       const attendeeName = `${reg.user.firstName || ''} ${reg.user.lastName || ''}`.trim().toUpperCase();
-      const attendeeNameCount = attendeeName.length;
-      const lengt = count - attendeeNameCount;      
-      const atteneName = `${reg.user.firstName || ''} ${reg.user.lastName || ''}`.trim().toUpperCase();
-      targetPage.drawText(atteneName, {
-        x: lengt - 50, // Centered
+      const attendeeNameWidth = regBoldFont.widthOfTextAtSize(attendeeName,18 );
+      targetPage.drawText(attendeeName, {
+        x: offsetX + (badgeQuadWidth / 2) - (attendeeNameWidth / 2), // Manually centered
         y: currentY,
         font: regBoldFont,
         size: 18,
         color: rgb(0, 0, 0), // Black as in the image
-        textAlign: 'center',
+        // Removed textAlign: 'center'
       });
       currentY -= 25;
 
-      // Company (Uppercase, Centered)
-      targetPage.drawText((reg.user.company || '').toUpperCase(), {
-        x: offsetX + badgeQuadWidth / 2, // Centered
+      // Company (Uppercase, Centered manually)
+      const companyName = (reg.user.company || '').toUpperCase();
+      const companyNameWidth = regFont.widthOfTextAtSize(companyName, 14);
+      targetPage.drawText(companyName, {
+        x: offsetX + (badgeQuadWidth / 2) - (companyNameWidth / 2), // Manually centered
         y: currentY,
         font: regFont,
         size: 14,
         color: rgb(0.2, 0.2, 0.2),
-        textAlign: 'center',
+        // Removed textAlign: 'center'
       });
       currentY -= 40; // More space before QR/Barcode
 
@@ -199,26 +198,30 @@ export async function GET(req: Request, { params }: Params) {
         height: barcodeHeightDesired,
       });
       
-      // Pass ID text below barcode (Centered under barcode)
-      targetPage.drawText(reg.passId, {
-        x: barcodeX + barcodeWidthDesired / 2, // Centered below barcode
+      // Pass ID text below barcode (Centered manually under barcode)
+      const passIdText = reg.passId;
+      const passIdTextWidth = regFont.widthOfTextAtSize(passIdText, 10);
+      targetPage.drawText(passIdText, {
+        x: barcodeX + (barcodeWidthDesired / 2) - (passIdTextWidth / 2), // Manually centered under barcode
         y: barcodeY - 15, // Position below barcode image
         font: regFont,
         size: 10,
         color: rgb(0, 0, 0),
-        textAlign: 'center',
+        // Removed textAlign: 'center'
       });
 
       currentY -= (qrCodeSize + 35); // Move Y down by QR height + text offset, adjusted for barcode image height
 
-      // VISITOR text (at the bottom center of the badge quadrant)
-      targetPage.drawText('VISITOR', {
-        x: offsetX + badgeQuadWidth / 2, // Centered
+      // VISITOR text (at the bottom center of the badge quadrant, centered manually)
+      const visitorText = 'VISITOR';
+      const visitorTextWidth = regBoldFont.widthOfTextAtSize(visitorText, 28 );
+      targetPage.drawText(visitorText, {
+        x: offsetX + (badgeQuadWidth / 2) - (visitorTextWidth / 2), // Manually centered
         y: offsetY + internalPadding + 30, // Position near the bottom, respecting padding
         font: regBoldFont,
         size: 28,
         color: rgb(0.1, 0.1, 0.4), // Dark blue for consistency
-        textAlign: 'center', // This is crucial for proper centering
+        // Removed textAlign: 'center'
       });
     };
 
