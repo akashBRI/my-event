@@ -294,14 +294,13 @@ export default function RegistrationsPage() {
               id="itemsPerPage"
               value={itemsPerPage}
               onChange={handleItemsPerPageChange}
-              className="mt-1 block w-24 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+              className="mt-1 block w-24 border p-2 rounded-md text-black border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm board"
             >
               <option value={10}>10</option>
               <option value={25}>25</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
             </select>
-            <span className="text-sm font-medium text-gray-700 whitespace-nowrap">entries</span>
           </div>
 
           <div className="w-full sm:w-1/3">
@@ -310,7 +309,7 @@ export default function RegistrationsPage() {
               placeholder="Search registrations..."
               value={searchTerm}
               onChange={handleSearchChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+              className="mt-1 block w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
             />
           </div>
         </div>
@@ -324,7 +323,7 @@ export default function RegistrationsPage() {
                     name="status"
                     value={filters.status}
                     onChange={handleFilterChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                    className="mt-1 block w-full rounded-md border p-2 text-black border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
                 >
                     <option value="">All</option>
                     <option value="registered">Registered</option>
@@ -341,7 +340,7 @@ export default function RegistrationsPage() {
                     value={filters.eventName}
                     onChange={handleFilterChange}
                     placeholder="Filter by event name"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                    className="mt-1 block w-full rounded-md border p-2 border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
                 />
             </div>
             <div>
@@ -353,7 +352,7 @@ export default function RegistrationsPage() {
                     value={filters.userEmail}
                     onChange={handleFilterChange}
                     placeholder="Filter by user email"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                    className="mt-1 block w-full rounded-md border p-2 border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
                 />
             </div>
         </div>
@@ -535,8 +534,8 @@ export default function RegistrationsPage() {
       {showDeleteConfirm && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white p-8 rounded-lg shadow-xl">
-            <h3 className="text-lg font-semibold mb-4">Confirm Deletion</h3>
-            <p className="mb-6">Are you sure you want to delete this registration?</p>
+            <h3 className="text-lg font-semibold mb-4 text-black">Confirm Deletion</h3>
+            <p className="mb-6 text-black">Are you sure you want to delete this registration?</p>
             <div className="flex justify-end space-x-4">
               <button
                 onClick={() => setShowDeleteConfirm(false)}
@@ -559,7 +558,7 @@ export default function RegistrationsPage() {
       {showEditModal && editingRegistration && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
           <div className="bg-white p-8 rounded-lg shadow-xl w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Edit Registration</h3>
+            <h3 className="text-lg font-semibold mb-4 text-black">Edit Registration</h3>
             <div className="space-y-4">
               <div>
                 <label htmlFor="editStatus" className="block text-sm font-medium text-gray-700 mb-1">Status</label>
@@ -568,7 +567,7 @@ export default function RegistrationsPage() {
                   name="status"
                   value={editFormData.status || ''}
                   onChange={handleEditFormChange}
-                  className={`mt-1 block w-full rounded-md border ${editErrors.status ? 'border-red-500' : 'border-gray-300'} px-3 py-2 shadow-sm focus:border-black focus:ring-black sm:text-sm`}
+                  className={`mt-1 block w-full text-black rounded-md border ${editErrors.status ? 'border-red-500' : 'border-gray-300'} px-3 py-2 shadow-sm focus:border-black focus:ring-black sm:text-sm`}
                 >
                   <option value="registered">Registered</option>
                   <option value="checked-in">Checked-in</option>
