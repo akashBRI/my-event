@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import axiosInstance from "@/lib/api";
 import Link from "next/link";
+// Removed 'Whatsapp' and 'Linkedin' from lucide-react import as they are not exported
+import { Copy, Share2 } from 'lucide-react';
 
 interface EventOccurrence {
   id: string;
@@ -37,6 +39,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [showShareOptions, setShowShareOptions] = useState(false); // State for share options visibility
 
   useEffect(() => {
     const fetchEvent = async () => {
@@ -58,6 +61,27 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
       fetchEvent();
     }
   }, [id]);
+
+  // Group occurrences by date for display
+  const occurrencesByDate = event?.occurrences.reduce((acc, occ) => {
+    const dateKey = new Date(occ.startTime).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+    if (!acc[dateKey]) {
+      acc[dateKey] = [];
+    }
+    acc[dateKey].push(occ);
+    return acc;
+  }, {} as Record<string, EventOccurrence[]>) || {};
+
+  const handleCopyLink = () => {
+    const currentUrl = window.location.href;
+    navigator.clipboard.writeText(currentUrl)
+      .then(() => toast.success("Event link copied to clipboard!"))
+      .catch(() => toast.error("Failed to copy link. Please copy manually."));
+  };
+
+  const toggleShareOptions = () => {
+    setShowShareOptions(prev => !prev);
+  };
 
   if (loading) {
     return (
@@ -89,16 +113,8 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
     );
   }
 
-  // Group occurrences by date for display
-  const occurrencesByDate = event.occurrences.reduce((acc, occ) => {
-    const dateKey = new Date(occ.startTime).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
-    if (!acc[dateKey]) {
-      acc[dateKey] = [];
-    }
-    acc[dateKey].push(occ);
-    return acc;
-  }, {} as Record<string, EventOccurrence[]>);
-
+  const eventShareUrl = `${window.location.origin}/events/${event.id}`;
+  const shareText = `Check out this event: ${event.name} at ${event.location}! ${eventShareUrl}`;
 
   return (
     <div className="min-h-screen w-screen flex items-center justify-center p-4"
@@ -116,8 +132,6 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
           {/* Logo/Name */}
           <div className="text-center">
             <h1 className="text-2xl font-bold text-gray-900 uppercase">BLUE RHINE INDUSTRIES LLC</h1>
-            {/* You can replace this with an image tag for an actual logo */}
-            {/* <img src="/path/to/your/logo.png" alt="Blue Rhine Industries Logo" className="h-10 mx-auto" /> */}
           </div>
           {/* Top-right dots */}
           <div className="flex space-x-1">
@@ -141,7 +155,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
             {event.description || "Join us as we unveil our next chapter in digital experience."}
           </p>
           <p className="text-md mt-4 text-gray-600">
-            Experience the tech firsthand, and see how we&apos;re reshaping digital spaces. {/* Fixed apostrophe here */}
+            Experience the tech firsthand, and see how we&apos;re reshaping digital spaces.
           </p>
         </div>
 
@@ -170,16 +184,51 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
           </div>
         )}
 
-        {/* Public Registration Button (replaces QR code) */}
-        <div className="text-center mb-8">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">REGISTER NOW</h3>
-          <Link
-            href={`/public-register?eventId=${event.id}`}
-            className="inline-flex items-center justify-center px-8 py-2 border border-transparent text-xl font-bold rounded-full shadow-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-105"
-          >
-             Click to Join Us !
-          </Link>
+        {/* Action Buttons: Register, Get Link, Share */}
+        <div className="text-center mb-8 flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
+            <Link
+                href={`/public-register?eventId=${event.id}`}
+                className="inline-flex items-center justify-center px-8 py-2 border border-transparent text-xl font-bold rounded-full shadow-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-105"
+            >
+                Click to Join Us!
+            </Link>
+            <button
+                onClick={handleCopyLink}
+                className="inline-flex items-center justify-center px-8 py-2 border border-gray-300 text-lg font-bold rounded-full shadow-lg text-gray-800 bg-white hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-300 transition-all duration-300 transform hover:scale-105"
+            >
+                <Copy size={20} className="mr-2" /> Get Link
+            </button>
+            <button
+                onClick={toggleShareOptions}
+                className="inline-flex items-center justify-center px-8 py-2 border border-gray-300 text-lg font-bold rounded-full shadow-lg text-gray-800 bg-white hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-300 transition-all duration-300 transform hover:scale-105"
+            >
+                <Share2 size={20} className="mr-2" /> Share
+            </button>
         </div>
+
+        {/* Share Options */}
+        {showShareOptions && (
+            <div className="mt-4 mb-8 flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-4">
+                <a
+                    href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-full transition-colors duration-200 shadow-md"
+                >
+                    {/* Placeholder for WhatsApp icon */}
+                    <span className="mr-2">WA</span> Share on WhatsApp
+                </a>
+                <a
+                    href={`https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(eventShareUrl)}&title=${encodeURIComponent(event.name)}&summary=${encodeURIComponent(event.description || '')}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 px-4 rounded-full transition-colors duration-200 shadow-md"
+                >
+                    {/* Placeholder for LinkedIn icon */}
+                    <span className="mr-2">IN</span> Share on LinkedIn
+                </a>
+            </div>
+        )}
 
         {/* Additional Event Info (Contact, Capacity, etc.) */}
         <div className="text-center text-sm text-gray-600 space-y-1 mb-0">
@@ -215,6 +264,11 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
               {event.registrations?.length >= event.maxCapacity && <span className="text-red-500">(Full)</span>}
             </p>
           )}
+        </div>
+        <div className="text-center mt-6">
+            <Link href="/events" className="text-sm text-gray-600 hover:underline">
+                Back to All Events
+            </Link>
         </div>
       </div>
     </div>
