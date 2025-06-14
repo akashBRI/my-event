@@ -265,11 +265,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
             </p>
           )}
         </div>
-        <div className="text-center mt-6">
-            <Link href="/events" className="text-sm text-gray-600 hover:underline">
-                Back to All Events
-            </Link>
-        </div>
+        
       </div>
     </div>
   );
