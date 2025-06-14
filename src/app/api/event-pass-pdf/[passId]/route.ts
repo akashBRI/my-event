@@ -8,6 +8,9 @@ import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 import fs from 'fs/promises'; // Import Node.js file system promises
 import path from 'path'; // Import Node.js path module
 
+// Force this route to be dynamic to prevent static generation issues
+export const dynamic = 'force-dynamic';
+
 interface Params {
   params: { passId: string };
 }
@@ -357,7 +360,7 @@ export async function GET(req: Request, { params }: Params) {
       return NextResponse.json({ error: `Database error: ${error.message}` }, { status: 500 });
     }
     if (error instanceof Error) {
-      return NextResponse.json({ error: `Failed to generate PDF: ${error.message}` }, { status: 500 });
+      return NextResponse.json({ error: `An unexpected error occurred: ${error.message}` }, { status: 500 });
     }
     return NextResponse.json({ error: 'Something went wrong.' }, { status: 500 });
   }
