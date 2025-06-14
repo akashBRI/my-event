@@ -1,0 +1,120 @@
+// prisma/schema.prisma
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql" // Or "mysql", "sqlite", etc., based on your actual DB
+  url      = env("DATABASE_URL")
+}
+
+// Your existing models (User, Account, Session, VerificationToken) should be here.
+// I'm including a full example for clarity, assuming common fields.
+// Ensure your User model also has firstName, lastName, phone, company if they are used elsewhere.
+
+model User {
+  id            String    @id @default(cuid())
+  firstName     String?
+  lastName      String?
+  phone         String?
+  email         String    @unique
+  emailVerified DateTime?
+  password      String?
+  company       String? // Ensure this is present if used in public-register form
+  position      String?
+  image         String?
+  accounts      Account[]
+  sessions      Session[]
+  events        EventRegistration[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Event {
+  id            String              @id @default(cuid())
+  name          String
+  description   String              // Changed to String (required) as per earlier request
+  location      String
+  googleMapsLink String?            // Added this field
+  contactEmail  String?             // Added this field
+  contactPhone  String?             // Added this field
+  maxCapacity   Int?
+  registrations EventRegistration[]
+  occurrences   EventOccurrence[]   // Relation to EventOccurrence
+}
+
+model EventOccurrence {
+  id            String                      @id @default(cuid())
+  eventId       String
+  startTime     DateTime
+  endTime       DateTime?
+  location      String?
+  event         Event                       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  registrations EventOccurrenceRegistration[] // Relation to the join table
+
+  @@unique([eventId, startTime])
+}
+
+// THIS IS THE MODEL FOR THE REGISTRATION ITSELF
+model EventRegistration {
+  id                  String                      @id @default(cuid())
+  userId              String                      // Link to the User who registered
+  eventId             String                      // Link to the Event they registered for
+  registrationDate    DateTime                    @default(now())
+  status              String                      @default("registered") // e.g., "registered", "checked-in", "cancelled"
+  passId              String                      @unique // Unique ID for their pass
+  qrCodeData          String?                     // Store QR code data if generated
+
+  user                User                        @relation(fields: [userId], references: [id])
+  event               Event                       @relation(fields: [eventId], references: [id])
+  // THIS IS THE CRUCIAL RELATION THAT YOUR ERROR IS ABOUT:
+  selectedOccurrences EventOccurrenceRegistration[] // Relation to the join table for selected occurrences
+
+  @@unique([userId, eventId]) // A user can only register for a main event once
+}
+
+// THIS IS THE JOIN TABLE FOR MULTIPLE OCCURRENCE SELECTIONS PER REGISTRATION
+model EventOccurrenceRegistration {
+  id              String          @id @default(cuid())
+  registrationId  String
+  occurrenceId    String
+  registeredAt    DateTime        @default(now()) // Timestamp for when this specific occurrence was selected
+
+  registration    EventRegistration @relation(fields: [registrationId], references: [id], onDelete: Cascade)
+  occurrence      EventOccurrence   @relation(fields: [occurrenceId], references: [id], onDelete: Cascade)
+
+  @@unique([registrationId, occurrenceId]) // A specific registration can only be linked to an occurrence once
+}
