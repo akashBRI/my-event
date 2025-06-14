@@ -47,7 +47,7 @@ export async function GET(req: Request, { params }: Params) {
     // 2. Generate QR Code as a PNG image buffer, encoding the passId
     const qrCodeImageBuffer = await QRCode.toBuffer(registration.passId, { // Encoding passId directly
       errorCorrectionLevel: 'H',
-      type: 'image/png',
+      type: 'png', // Changed from 'image/png' to 'png'
       scale: 8, // Adjust scale for resolution
     });
 
@@ -77,8 +77,9 @@ export async function GET(req: Request, { params }: Params) {
 
     const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
     const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
-    const qrImage = await pdfDoc.embedPng(qrCodeImageBuffer);
-    const barcodeImage = await pdfDoc.embedPng(barcodeImageBuffer); // Embed the generated barcode image
+    // Convert Node.js Buffer to Uint8Array for pdf-lib compatibility
+    const qrImage = await pdfDoc.embedPng(Uint8Array.from(qrCodeImageBuffer));
+    const barcodeImage = await pdfDoc.embedPng(Uint8Array.from(barcodeImageBuffer)); // Convert Buffer to Uint8Array
 
     let headerImage: any = null;
     try {
@@ -148,7 +149,7 @@ export async function GET(req: Request, { params }: Params) {
 
       // Attendee Name (Uppercase, Centered manually)
       const attendeeName = `${reg.user.firstName || ''} ${reg.user.lastName || ''}`.trim().toUpperCase();
-      const attendeeNameWidth = regBoldFont.widthOfTextAtSize(attendeeName,18 );
+      const attendeeNameWidth = regBoldFont.widthOfTextAtSize(attendeeName, 18);
       targetPage.drawText(attendeeName, {
         x: offsetX + (badgeQuadWidth / 2) - (attendeeNameWidth / 2), // Manually centered
         y: currentY,
@@ -214,7 +215,7 @@ export async function GET(req: Request, { params }: Params) {
 
       // VISITOR text (at the bottom center of the badge quadrant, centered manually)
       const visitorText = 'VISITOR';
-      const visitorTextWidth = regBoldFont.widthOfTextAtSize(visitorText, 28 );
+      const visitorTextWidth = regBoldFont.widthOfTextAtSize(visitorText, 28);
       targetPage.drawText(visitorText, {
         x: offsetX + (badgeQuadWidth / 2) - (visitorTextWidth / 2), // Manually centered
         y: offsetY + internalPadding + 30, // Position near the bottom, respecting padding
@@ -282,20 +283,20 @@ export async function GET(req: Request, { params }: Params) {
     page.drawText('FRONT', {
       x: width / 2 - 55, // Adjust X to position it on the left of vertical line
       y: height / 2 + textGap, // Adjust Y to position it above horizontal line
-      font: font,
+      font: boldFont, // Changed to boldFont
       size: indicatorFontSize,
       color: indicatorColor
     });
 
     // "BACK" text (bottom-left of the cross area, rotated 180 degrees)
     const backText = 'BACK';
-    const backTextWidth = font.widthOfTextAtSize(backText, indicatorFontSize );
-    const backTextHeight = font.heightAtSize(indicatorFontSize);
+    const backTextWidth = boldFont.widthOfTextAtSize(backText, indicatorFontSize ); // Used boldFont
+    const backTextHeight = boldFont.heightAtSize(indicatorFontSize); // Used boldFont
     
     page.drawText(backText, {
         x: (width / 2 - 7) - backTextWidth,
         y: (height / 2 - 5),
-        font: font,
+        font: boldFont, // Changed to boldFont
         size: indicatorFontSize,
         color: indicatorColor,
         rotate: degrees(180)
@@ -304,13 +305,13 @@ export async function GET(req: Request, { params }: Params) {
 
     // "FOLD" text (top-right of the cross area, rotated 90 degrees)
     const foldText = 'FOLD';
-    const foldTextWidth = font.widthOfTextAtSize(foldText, indicatorFontSize);
-    const foldTextHeight = font.heightAtSize(indicatorFontSize);
+    const foldTextWidth = boldFont.widthOfTextAtSize(foldText, indicatorFontSize); // Used boldFont
+    const foldTextHeight = boldFont.heightAtSize(indicatorFontSize); // Used boldFont
 
     page.drawText(foldText, {
         x: width / 2 + textGap + foldTextHeight - 10,
         y: height / 2 + (foldTextWidth / 2) - foldTextWidth + 15,
-        font: font,
+        font: boldFont, // Changed to boldFont
         size: indicatorFontSize,
         color: indicatorColor,
         rotate: degrees(90)
