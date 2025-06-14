@@ -45,11 +45,13 @@ export async function POST(req: Request) {
 
 
     // 2. Check if user already exists or create a new user (or link to existing)
-    let user = await prisma.user.findUnique({
+    // Explicitly define user type to allow null initially, then narrow it down.
+    let user: Awaited<ReturnType<typeof prisma.user.findUnique>> | null = await prisma.user.findUnique({
       where: { email },
     });
 
     if (!user) {
+      // Create user if not found
       user = await prisma.user.create({
         data: {
           email,
@@ -72,12 +74,18 @@ export async function POST(req: Request) {
       });
     }
 
+    // Ensure user is not null before proceeding. This guarantees TypeScript knows 'user' is defined.
+    if (!user) {
+      // This case should ideally not be reached if Prisma create/update operations are successful
+      return NextResponse.json({ error: 'Failed to create or retrieve user during registration.' }, { status: 500 });
+    }
+
 
     // 3. Check if user is already registered for this specific event
     const existingRegistration = await prisma.eventRegistration.findUnique({
       where: {
         userId_eventId: {
-          userId: user.id,
+          userId: user.id, // 'user' is now guaranteed non-null here
           eventId: eventId,
         },
       },
@@ -116,7 +124,7 @@ export async function POST(req: Request) {
     const newRegistration = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const reg = await tx.eventRegistration.create({ // Use `tx` here
         data: {
-          userId: user.id,
+          userId: user.id, // 'user' is guaranteed non-null here due to the check above
           eventId: eventId,
           passId: passId,
           qrCodeData: qrCodeDataUrl, // Store the base64 URL of the QR code
