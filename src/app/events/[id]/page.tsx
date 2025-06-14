@@ -130,7 +130,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
         {/* Invitation and Event Title */}
         <div className="text-center mb-8">
           <p className="text-lg text-gray-600 mb-2">YOU ARE INVITED TO</p>
-          <h2 className="text-4xl sm:text-3xl font-extrabold text-blue-800 leading-tight">
+          <h2 className="text-4xl sm:text-4xl font-extrabold text-blue-800 leading-tight">
             {event.name.toUpperCase()}
           </h2>
         </div>
@@ -140,8 +140,8 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
           <p className="text-lg leading-relaxed text-gray-700">
             {event.description || "Join us as we unveil our next chapter in digital experience."}
           </p>
-          <p className="text-md mt-4 text-gray-600 uppercase">
-            Experience the tech firsthand, and see how we're reshaping digital spaces
+          <p className="text-md mt-4 text-gray-600">
+            Experience the tech firsthand, and see how we&apos;re reshaping digital spaces. {/* Fixed apostrophe here */}
           </p>
         </div>
 
@@ -160,7 +160,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
                           {new Date(occ.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           {occ.endTime ? ` - ${new Date(occ.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
                         </span>
-                        {occ.location && occ.location !== event.location && ` (${occ.location})`}
+                        {occ.location && occ.location !== event.location ? ` (${occ.location})` : ''}
                       </li>
                     ))}
                   </ul>
@@ -175,14 +175,14 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
           <h3 className="text-lg font-semibold text-gray-800 mb-4">REGISTER NOW</h3>
           <Link
             href={`/public-register?eventId=${event.id}`}
-            className="inline-flex items-center justify-center px-4 py-2 border border-transparent text-xl font-bold rounded-full shadow-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-105"
+            className="inline-flex items-center justify-center px-8 py-2 border border-transparent text-xl font-bold rounded-full shadow-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-105"
           >
-            Click to Join Us!
+             Click to Join Us !
           </Link>
         </div>
 
         {/* Additional Event Info (Contact, Capacity, etc.) */}
-        <div className="text-center text-sm text-gray-600 space-y-1 mb-8">
+        <div className="text-center text-sm text-gray-600 space-y-1 mb-0">
           <p>
             <strong>Main Location:</strong> {event.location}
             {event.googleMapsLink && (
@@ -215,13 +215,6 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
               {event.registrations?.length >= event.maxCapacity && <span className="text-red-500">(Full)</span>}
             </p>
           )}
-        </div>
-
-        {/* Footer Link */}
-        <div className="text-center mt-6">
-            <Link href="/events" className="text-sm text-gray-600 hover:underline">
-                Back to All Events
-            </Link>
         </div>
       </div>
     </div>
