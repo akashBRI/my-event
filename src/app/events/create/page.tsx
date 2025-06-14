@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import axiosInstance from "@/lib/api";
@@ -35,7 +35,7 @@ export default function CreateEventPage() {
     occurrences: [] as { startTime?: string; endTime?: string; location?: string }[],
   });
   const [apiError, setApiError] = useState("");
-  const [buttonDisabled, setButtonDisabled] = useState(true);
+  const [buttonDisabled, setLoadingButtonDisabled] = useState(true); // Renamed for clarity
   const [loading, setLoading] = useState(false);
 
   const validateEmail = (email: string) => {
@@ -48,7 +48,7 @@ export default function CreateEventPage() {
     return phoneRegex.test(phone);
   };
 
-  const handleValidation = () => {
+  const handleValidation = useCallback(() => {
     let formErrors = {
       name: "",
       description: "",
@@ -104,7 +104,7 @@ export default function CreateEventPage() {
       formErrors.occurrences[0] = { startTime: "At least one event occurrence is required." };
       isValid = false;
     } else {
-      formData.occurrences.forEach((occ, index) => {
+      formData.occurrences.forEach((occ: EventOccurrenceFormData, index) => { // Explicitly typed 'occ' here
         let occErrors: { startTime?: string; endTime?: string; location?: string } = {};
         if (!occ.startTime) {
           occErrors.startTime = "Start Time is required.";
@@ -125,9 +125,9 @@ export default function CreateEventPage() {
     }
 
     setErrors(formErrors);
-    setButtonDisabled(!isValid || formData.occurrences.some(occ => !occ.startTime));
+    setLoadingButtonDisabled(!isValid || formData.occurrences.some(occ => !occ.startTime)); // Updated state variable
     return isValid;
-  };
+  }, [formData]);
 
   const handleOccurrenceChange = (index: number, field: keyof EventOccurrenceFormData, value: string) => {
     const newOccurrences = [...formData.occurrences];
@@ -185,7 +185,8 @@ export default function CreateEventPage() {
 
   useEffect(() => {
     handleValidation();
-  }, [formData]);
+  }, [formData, handleValidation]);
+
 
   return (
     <div className="min-h-screen bg-gray-50 p-8 flex flex-col items-center">
@@ -408,8 +409,8 @@ export default function CreateEventPage() {
         <div className="flex flex-col space-y-4 px-8 pb-8 ">
           <button
             onClick={onCreateEvent}
-            disabled={buttonDisabled || loading}
-            className={`flex h-10 w-full items-center justify-center rounded-md border text-sm transition-all focus:outline-none ${buttonDisabled || loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-black text-white'}`}
+            disabled={buttonDisabled || loading} // Updated state variable
+            className={`flex h-10 w-full items-center justify-center rounded-md border text-sm transition-all focus:outline-none ${buttonDisabled || loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-black text-white'}`} // Updated state variable
           >
             {loading ? (
               <svg

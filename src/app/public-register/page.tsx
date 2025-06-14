@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 import axiosInstance from "@/lib/api";
@@ -101,7 +101,7 @@ export default function PublicRegisterPage() {
     return phoneRegex.test(phone);
   };
 
-  const handleValidation = () => {
+  const handleValidation = useCallback(() => { // Wrapped with useCallback
     let formErrors = {
       firstName: "", lastName: "", email: "", phone: "", company: "",
       eventId: "", selectedOccurrenceId: "", // Changed for single selection error
@@ -150,7 +150,7 @@ export default function PublicRegisterPage() {
     setErrors(formErrors);
     setButtonDisabled(!isValid);
     return isValid;
-  };
+  }, [formData]); // Added formData to useCallback dependencies
 
   // Handle single occurrence selection for radio buttons
   const handleOccurrenceSelection = (occurrenceId: string) => {
@@ -199,7 +199,7 @@ export default function PublicRegisterPage() {
     if (!initialDataLoading) {
       handleValidation();
     }
-  }, [formData, initialDataLoading]);
+  }, [formData, initialDataLoading, handleValidation]); // Added handleValidation to useEffect dependencies
 
   if (initialDataLoading) {
     return (
@@ -255,7 +255,7 @@ export default function PublicRegisterPage() {
       <div className="w-full max-w-2xl bg-white bg-opacity-95 rounded-xl shadow-2xl overflow-hidden p-8 sm:p-12 text-gray-800"
            style={{ fontFamily: '"Inter", sans-serif' }}>
         {/* Header/Branding area */}
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-8">
           <div className="flex space-x-1">
             <div className="w-2 h-2 rounded-full bg-blue-600"></div>
             <div className="w-2 h-2 rounded-full bg-blue-600"></div>
@@ -272,9 +272,9 @@ export default function PublicRegisterPage() {
         </div>
 
         {/* Form Title */}
-        <div className="text-center mb-6">
-          <h2 className="text-3xl sm:text-3xl font-extrabold text-blue-800 leading-tight">
-            Event Registration
+        <div className="text-center mb-8">
+          <h2 className="text-3xl sm:text-4xl font-extrabold text-blue-800 leading-tight">
+            Public Event Registration
           </h2>
           <p className="text-md mt-2 text-gray-600">
             Sign up for your preferred session.
@@ -299,7 +299,7 @@ export default function PublicRegisterPage() {
         )}
 
         {/* Form Fields */}
-        <div className="space-y-6 mb-8 px-4 sm:px-0">
+        <div className="space-y-6 mb-8 px-4 sm:px-8">
           {/* Personal Information */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -369,7 +369,7 @@ export default function PublicRegisterPage() {
 
           {/* Occurrences Selection */}
           {selectedEventDetails && selectedEventDetails.occurrences.length > 0 && (
-            <div className="">
+            <div className="bg-gray-100 p-4 rounded-lg shadow-inner">
               <h3 className="text-lg font-semibold text-gray-800 mb-3">Which session will you attend? <span className="text-red-500">*</span></h3>
               <div className="space-y-2">
                 {selectedEventDetails.occurrences.sort((a,b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()).map(occ => (
@@ -393,11 +393,11 @@ export default function PublicRegisterPage() {
         </div>
 
         {/* Register Button */}
-        <div className="text-center  px-4 sm:px-8">
+        <div className="text-center mb-8 px-4 sm:px-8">
           <button
             onClick={onRegister}
             disabled={buttonDisabled || loading}
-            className={`inline-flex items-center justify-center px-4 py-2 border border-transparent text-lg font-bold rounded-full shadow-lg text-white transition-all duration-300 transform ${buttonDisabled || loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 hover:scale-105'}`}
+            className={`inline-flex items-center justify-center px-8 py-4 border border-transparent text-xl font-bold rounded-full shadow-lg text-white transition-all duration-300 transform ${buttonDisabled || loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 hover:scale-105'}`}
           >
             {loading ? (
               <svg className="animate-spin h-6 w-6 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
@@ -405,7 +405,24 @@ export default function PublicRegisterPage() {
           </button>
         </div>
 
-        
+        {/* Footer Links */}
+        <div className="text-center text-sm text-gray-600 space-y-1">
+          <p>
+            Already have an account?{" "}
+            <Link href="/login" className="font-semibold text-blue-600 hover:underline">
+              Sign in
+            </Link>
+          </p>
+          <p>
+            Need your pass again?{" "}
+            <Link href="/request-pass" className="font-semibold text-blue-600 hover:underline">
+              Request it here
+            </Link>
+          </p>
+          <Link href="/events" className="block mt-4 font-semibold text-gray-600 hover:underline">
+            Back to Events List
+          </Link>
+        </div>
       </div>
     </div>
   );

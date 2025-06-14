@@ -2,27 +2,44 @@
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
-import axios from "axios"; // Use standard axios for public data
-import Link from "next/link"; // For navigation
+import axios from "axios"; // Using standard axios for public endpoint
+import Link from "next/link";
+import Image from "next/image"; // Import Next.js Image component
+
+interface EventOccurrence {
+  id: string;
+  startTime: string;
+  endTime: string | null;
+  location: string | null;
+}
 
 interface EventPassDetails {
-  id: string;
+  id: string; // Registration ID
   passId: string;
-  registrationDate: string;
-  status: string;
   qrCodeData: string;
+  status: string;
+  registrationDate: string;
   user: {
-    id: string;
-    name: string | null;
+    firstName: string | null;
+    lastName: string | null;
     email: string;
+    phone: string | null;
+    company: string | null;
   };
   event: {
-    id: string;
     name: string;
     description: string | null;
-    date: string;
     location: string;
+    googleMapsLink: string | null;
+    contactEmail: string | null;
+    contactPhone: string | null;
+    maxCapacity: number | null;
+    occurrences: EventOccurrence[]; // Include occurrences
   };
+  selectedOccurrences: { // This is the join table data
+    id: string;
+    occurrence: EventOccurrence; // The actual occurrence details
+  }[];
 }
 
 export default function ViewPassPage({ params }: { params: { passId: string } }) {
@@ -32,67 +49,31 @@ export default function ViewPassPage({ params }: { params: { passId: string } })
   const [passDetails, setPassDetails] = useState<EventPassDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [qrCodeImageSrc, setQrCodeImageSrc] = useState<string | null>(null);
+  const [qrCodeImgSrc, setQrCodeImgSrc] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!passId) {
-      setError("No pass ID provided.");
-      setLoading(false);
-      return;
-    }
-
     const fetchPassDetails = async () => {
       setLoading(true);
       setError(null);
       try {
-        // Use the general /api/event-registrations/:id endpoint if you want to reuse it
-        // Or create a new public one specific to passId, for now assuming the existing one is ok.
-        // For security, a public view pass might require specific endpoint that only returns non-sensitive data
-        // For simplicity, we'll try to fetch from my-registrations which might include a check for the current user's registration
-        // BUT FOR A PUBLIC VIEW, we need to fetch directly by passId.
-        // Let's assume you'll modify the GET /api/event-registrations/:id to allow fetching by passId if it's not a logged-in user's call
-        // Or better, create a dedicated public API for viewing pass by ID.
-        // For this example, we'll hit GET /api/event-registrations/:id and expect it to work for a public pass ID lookup,
-        // which might require a modification to your backend's GET /api/event-registrations/[id] if you want it to be public.
-        // Currently, our GET /api/event-registrations/:id is authenticated, so it won't work for public.
-        // We will make a slight adjustment to the backend (or create a new route) to allow public access to this specific view.
-        // For now, let's assume we can fetch by passId directly if the backend is configured.
-
-        // Temporarily, we'll hit the authenticated endpoint and might adjust backend or route later.
-        // The most secure public way is: create /api/public-pass/[passId] which only allows GET.
-        // For the sake of completing the frontend, I'll fetch by the `passId` here.
-        // **IMPORTANT**: The API route `GET /api/event-registrations/[id]` is currently PROTECTED.
-        // For this page to work as a public "view pass" page, you need to either:
-        // 1. Create a NEW public API route like `/api/public-event-pass/[passId]`
-        // 2. Modify `GET /api/event-registrations/[id]` to handle public requests for passId if no auth token is present.
-        // FOR NOW, I'm assuming you have created a public endpoint for passId or you are testing this
-        // with an authenticated user (which defeats the "public" purpose but makes the frontend work)
-
-        const response = await axios.get<EventPassDetails>(`/api/event-registrations/${passId}`); // This assumes backend is adjusted
+        const response = await axios.get<EventPassDetails>(`/api/view-pass/${passId}`);
         setPassDetails(response.data);
         if (response.data.qrCodeData) {
-            setQrCodeImageSrc(`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(response.data.qrCodeData)}`);
+          setQrCodeImgSrc(`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(response.data.qrCodeData)}`);
         }
       } catch (err: any) {
         console.error("Failed to fetch pass details:", err);
-        setError(err.response?.data?.error || "Failed to load pass details. Pass might be invalid or expired.");
-        toast.error(err.response?.data?.error || "Failed to load pass details.");
+        setError(err.response?.data?.error || "Failed to load event pass.");
+        toast.error(err.response?.data?.error || "Failed to load event pass.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPassDetails();
-  }, [passId]);
-
-  const handleDownloadPDF = () => {
-    if (passDetails?.passId) {
-      // Direct link to the PDF generation API
-      window.open(`/api/event-pass-pdf/${passDetails.passId}`, '_blank');
-    } else {
-      toast.error("Pass ID not available to generate PDF.");
+    if (passId) {
+      fetchPassDetails();
     }
-  };
+  }, [passId]);
 
   if (loading) {
     return (
@@ -104,10 +85,10 @@ export default function ViewPassPage({ params }: { params: { passId: string } })
 
   if (error) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
-        <div className="text-xl font-semibold text-red-600">{error}</div>
-        <Link href="/public-register" className="ml-4 px-4 py-2 bg-black text-white rounded-md">
-            Go to Public Registration
+      <div className="flex h-screen w-screen flex-col items-center justify-center bg-gray-50 text-black">
+        <div className="text-xl font-semibold text-red-600 mb-4">{error}</div>
+        <Link href="/request-pass" className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors">
+            Request Your Pass
         </Link>
       </div>
     );
@@ -115,53 +96,147 @@ export default function ViewPassPage({ params }: { params: { passId: string } })
 
   if (!passDetails) {
     return (
-      <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
-        <div className="text-xl font-semibold text-gray-700">Pass not found or not available.</div>
-        <Link href="/public-register" className="ml-4 px-4 py-2 bg-black text-white rounded-md">
-            Go to Public Registration
+      <div className="flex h-screen w-screen flex-col items-center justify-center bg-gray-50 text-black">
+        <div className="text-xl font-semibold text-gray-700 mb-4">Pass not found.</div>
+        <Link href="/request-pass" className="px-4 py-2 bg-black text-white rounded-md hover:bg-gray-800 transition-colors">
+            Request Your Pass
         </Link>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 p-8 flex flex-col items-center">
-      <div className="w-full max-w-2xl bg-white rounded-2xl border border-gray-100 shadow-xl p-8">
-        <h1 className="text-2xl font-semibold text-center text-black mb-6">Your Event Pass</h1>
+  const userFullName = `${passDetails.user.firstName || ''} ${passDetails.user.lastName || ''}`.trim();
 
-        <div className="space-y-4 text-gray-700">
-          <p><strong>Event:</strong> {passDetails.event.name}</p>
-          <p><strong>Description:</strong> {passDetails.event.description || "N/A"}</p>
-          <p><strong>Date:</strong> {new Date(passDetails.event.date).toLocaleString()}</p>
-          <p><strong>Location:</strong> {passDetails.event.location}</p>
-          <p><strong>Registrant:</strong> {passDetails.user.name || passDetails.user.email}</p>
-          <p><strong>Pass ID:</strong> {passDetails.passId}</p>
-          <p><strong>Registration Status:</strong> <span className={`font-medium ${passDetails.status === 'registered' ? 'text-green-600' : 'text-orange-500'}`}>{passDetails.status.toUpperCase()}</span></p>
+  return (
+    <div className="min-h-screen w-screen flex items-center justify-center p-4"
+         style={{ background: 'linear-gradient(to bottom right, #1a2a6c, #b21f1f, #fdbb2d)' }}>
+      <div className="w-full max-w-2xl bg-white bg-opacity-95 rounded-xl shadow-2xl overflow-hidden p-8 sm:p-12 text-gray-800"
+           style={{ fontFamily: '"Inter", sans-serif' }}>
+        {/* Branding Area */}
+        <div className="flex justify-between items-center mb-8">
+          <div className="flex space-x-1">
+            <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+            <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+            <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+          </div>
+          <div className="text-center">
+            <h1 className="text-xl font-bold text-gray-900 uppercase">BLUE RHINE INDUSTRIES</h1>
+          </div>
+          <div className="flex space-x-1">
+            <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+            <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+            <div className="w-2 h-2 rounded-full bg-blue-600"></div>
+          </div>
         </div>
 
-        {qrCodeImageSrc && (
-          <div className="mt-8 text-center">
-            <p className="text-sm text-gray-700 mb-2">Scan this QR Code for Check-in:</p>
-            <img src={qrCodeImageSrc} alt="QR Code" className="mx-auto border border-gray-300 rounded-md" />
+        {/* Pass Title */}
+        <div className="text-center mb-8">
+          <p className="text-lg text-gray-600 mb-2">YOUR EVENT PASS FOR</p>
+          <h2 className="text-4xl sm:text-5xl font-extrabold text-blue-800 leading-tight">
+            {passDetails.event.name.toUpperCase()}
+          </h2>
+        </div>
+
+        {/* Attendee Details */}
+        <div className="bg-gray-100 p-6 rounded-lg mb-8 shadow-inner text-center">
+          <p className="text-2xl font-bold text-gray-900 mb-2">{userFullName}</p>
+          <p className="text-md text-gray-700 mb-1">{passDetails.user.company || 'N/A'}</p>
+          <p className="text-md text-gray-700">Pass ID: <span className="font-semibold text-blue-700">{passDetails.passId}</span></p>
+          <p className="text-sm text-gray-600 mt-2">Status: <span className={`font-semibold ${passDetails.status === 'registered' ? 'text-blue-600' : 'text-green-600'}`}>{passDetails.status.toUpperCase()}</span></p>
+        </div>
+
+        {/* QR Code and Instructions */}
+        {qrCodeImgSrc && (
+          <div className="text-center mb-8">
+            <p className="text-lg font-semibold text-gray-800 mb-4">Scan for Quick Check-in</p>
+            <div className="relative mx-auto w-48 h-48 sm:w-64 sm:h-64 rounded-lg shadow-md border-4 border-white overflow-hidden">
+              {/* Changed from <img> to <Image /> component */}
+              <Image
+                src={qrCodeImgSrc}
+                alt="QR Code for Event Pass"
+                fill // Use fill to make image cover the parent
+                style={{ objectFit: 'contain' }} // Maintain aspect ratio
+                quality={100} // High quality for QR code
+                sizes="(max-width: 640px) 150px, 250px" // Responsive sizes
+                className="rounded-md"
+              />
+            </div>
+            <p className="text-sm text-gray-600 mt-4">Present this QR code at the event for entry.</p>
           </div>
         )}
 
-        <div className="mt-8 flex flex-col space-y-4">
-          <button
-            onClick={handleDownloadPDF}
-            className="w-full py-2 px-4 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 transition-colors flex items-center justify-center"
+        {/* Selected Session Details */}
+        {passDetails.selectedOccurrences && passDetails.selectedOccurrences.length > 0 && (
+            <div className="bg-blue-50 p-6 rounded-lg mb-8 shadow-inner text-blue-800">
+                <h3 className="text-lg font-semibold text-center mb-3">Your Session Details:</h3>
+                {passDetails.selectedOccurrences.map((so: { id: string; occurrence: EventOccurrence }) => {
+                    const occ = so.occurrence;
+                    const startTime = new Date(occ.startTime);
+                    const endTime = occ.endTime ? new Date(occ.endTime) : null;
+                    return (
+                        <div key={occ.id} className="text-center mb-2 last:mb-0">
+                            <p className="font-bold text-lg">
+                                {startTime.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
+                            </p>
+                            <p className="text-md">
+                                {startTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {endTime ? ` - ${endTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
+                            </p>
+                            {occ.location && <p className="text-sm text-blue-700">{occ.location}</p>}
+                        </div>
+                    );
+                })}
+            </div>
+        )}
+
+        {/* Call to Action: Download PDF Pass */}
+        <div className="text-center mb-8">
+          <p className="text-lg font-semibold text-gray-800 mb-4">Need a printable pass?</p>
+          <a
+            href={`/api/event-pass-pdf/${passDetails.passId}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center px-8 py-4 border border-transparent text-xl font-bold rounded-full shadow-lg text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-4 focus:ring-red-300 transition-all duration-300 transform hover:scale-105"
           >
-             <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
-                <path fillRule="evenodd" d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z" clipRule="evenodd" />
-            </svg>
             Download PDF Pass
-          </button>
-          <Link href="/public-register" className="text-center py-2 px-4 rounded-md bg-gray-200 text-black text-sm hover:bg-gray-300 transition-colors">
-            Register for Another Event
-          </Link>
-          <Link href="/login" className="text-center py-2 px-4 rounded-md bg-gray-200 text-black text-sm hover:bg-gray-300 transition-colors">
-            Go to Login
-          </Link>
+          </a>
+        </div>
+
+        {/* Event Details Section */}
+        <div className="text-center text-sm text-gray-600 space-y-1 mb-8">
+          <p>
+            <strong>Event Location:</strong> {passDetails.event.location}
+            {passDetails.event.googleMapsLink && (
+              <>
+                {" "}
+                (<a href={passDetails.event.googleMapsLink} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">View on Map</a>)
+              </>
+            )}
+          </p>
+          {passDetails.event.contactEmail && (
+            <p>
+              <strong>Contact:</strong>{" "}
+              <a href={`mailto:${passDetails.event.contactEmail}`} className="text-blue-600 hover:underline">
+                {passDetails.event.contactEmail}
+              </a>
+              {passDetails.event.contactPhone && (
+                <>
+                  {" "}
+                  |{" "}
+                  <a href={`tel:${passDetails.event.contactPhone}`} className="text-blue-600 hover:underline">
+                    {passDetails.event.contactPhone}
+                  </a>
+                </>
+              )}
+            </p>
+          )}
+        </div>
+
+        {/* Footer Link */}
+        <div className="text-center mt-6">
+            <Link href="/events" className="text-sm text-gray-600 hover:underline">
+                Back to All Events
+            </Link>
         </div>
       </div>
     </div>

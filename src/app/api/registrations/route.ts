@@ -3,6 +3,9 @@ import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
 import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
 
+// Force this route to be dynamic, preventing static generation issues with request.url
+export const dynamic = 'force-dynamic';
+
 // GET all registrations with pagination, filter, and sort (search is client-side now)
 export async function GET(req: Request) {
   try {
