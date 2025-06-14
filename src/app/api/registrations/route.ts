@@ -1,116 +1,169 @@
-// src/app/api/registrations/route.ts
+// src/app/api/public-register/route.ts
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library';
+import QRCode from 'qrcode'; // For QR code generation
+import { sendRegistrationEmail } from '@/lib/emailService'; // Corrected import: sendRegistrationEmail
+import { PrismaClient, Prisma } from '@prisma/client'; // Import PrismaClient and Prisma namespace for typing
 
-// Force this route to be dynamic, preventing static generation issues with request.url
-export const dynamic = 'force-dynamic';
+// Define a type for occurrence data as it exists in the database
+interface EventOccurrence {
+  id: string;
+  startTime: Date; // Assuming Prisma stores as Date objects
+  endTime: Date | null;
+  location: string | null;
+  eventId: string;
+}
 
-// GET all registrations with pagination, filter, and sort (search is client-side now)
-export async function GET(req: Request) {
+
+// Function to generate a unique pass ID
+function generatePassId(): string {
+  // Simple UUID-like string generation
+  return 'PASS-' + Math.random().toString(36).substring(2, 11).toUpperCase();
+}
+
+export async function POST(req: Request) {
   try {
-    const { searchParams } = new URL(req.url);
+    // Destructure all expected fields from the request body
+    const { firstName, lastName, email, phone, company, eventId, selectedOccurrenceIds } = await req.json();
 
-    // Pagination
-    const page = parseInt(searchParams.get('page') || '1');
-    const limit = parseInt(searchParams.get('limit') || '10');
-    const skip = (page - 1) * limit;
-
-    // Filters (searchTerm handling removed from backend)
-    const statusFilter = searchParams.get('status') || '';
-    const eventNameFilter = searchParams.get('eventName') || '';
-    const userEmailFilter = searchParams.get('userEmail') || '';
-
-    // Sorting
-    const sortBy = searchParams.get('sortBy') || 'registrationDate'; // Default sort key
-    const sortDirection = searchParams.get('sortDirection') === 'descending' ? 'desc' : 'asc'; // Default sort direction
-
-    // Constructing the WHERE clause for Prisma
-    const where: any = {};
-
-    // Filters
-    if (statusFilter) {
-      where.status = statusFilter;
-    }
-    if (eventNameFilter) {
-      where.event = {
-        name: { contains: eventNameFilter, mode: 'insensitive' }
-      };
-    }
-    if (userEmailFilter) {
-      where.user = {
-        email: { contains: userEmailFilter, mode: 'insensitive' }
-      };
+    // 1. Basic Validation
+    if (!firstName || !lastName || !email || !phone || !company || !eventId || !selectedOccurrenceIds || selectedOccurrenceIds.length === 0) {
+      return NextResponse.json({ error: 'All required fields (First Name, Last Name, Email, Phone, Company, Event, and at least one Session) must be provided.' }, { status: 400 });
     }
 
-    // Constructing the ORDER BY clause for Prisma
-    const orderBy: any = {};
-    if (sortBy.startsWith('user.')) {
-      orderBy.user = { [sortBy.split('.')[1]]: sortDirection };
-    } else if (sortBy.startsWith('event.')) {
-      orderBy.event = { [sortBy.split('.')[1]]: sortDirection };
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return NextResponse.json({ error: 'Invalid email format.' }, { status: 400 });
+    }
+
+    // Validate phone format (simple check for digits, spaces, +, -)
+    const phoneRegex = /^[0-9\s\-\+()]+$/;
+    if (!phoneRegex.test(phone)) {
+        return NextResponse.json({ error: 'Invalid phone number format.' }, { status: 400 });
+    }
+
+
+    // 2. Check if user already exists or create a new user (or link to existing)
+    let user = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email,
+          firstName,
+          lastName,
+          phone,
+          company,
+        },
+      });
     } else {
-      orderBy[sortBy] = sortDirection;
+      // If user exists, update their profile with potentially new info
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data: {
+          firstName: firstName || user.firstName,
+          lastName: lastName || user.lastName,
+          phone: phone || user.phone,
+          company: company || user.company,
+        },
+      });
     }
 
-    const [registrations, total] = await prisma.$transaction([
-      prisma.eventRegistration.findMany({
-        where,
-        take: limit,
-        skip: skip,
-        orderBy,
-        include: {
-          user: {
-            select: {
-              id: true,
-              firstName: true,
-              lastName: true,
-              email: true,
-              phone: true,
-              company: true,
-            },
-          },
-          event: {
-            select: {
-              id: true,
-              name: true,
-              location: true,
-            },
-          },
-          selectedOccurrences: { // THIS FIELD MUST BE RECOGNIZED BY PRISMA CLIENT
-            include: {
-              occurrence: true, // Include details of the related occurrence
-            },
-            orderBy: {
+
+    // 3. Check if user is already registered for this specific event
+    const existingRegistration = await prisma.eventRegistration.findUnique({
+      where: {
+        userId_eventId: {
+          userId: user.id,
+          eventId: eventId,
+        },
+      },
+    });
+
+    if (existingRegistration) {
+      return NextResponse.json({ error: 'You are already registered for this event.' }, { status: 409 });
+    }
+
+    // 4. Validate selected occurrences against the event's actual occurrences
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        occurrences: true,
+      },
+    });
+
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found.' }, { status: 404 });
+    }
+
+    // Filter `event.occurrences` (from DB) to find valid ones based on `selectedOccurrenceIds` (from request)
+    const validOccurrences = event.occurrences.filter((occ: EventOccurrence) => selectedOccurrenceIds.includes(occ.id)); // Explicitly type 'occ'
+    if (validOccurrences.length !== selectedOccurrenceIds.length) {
+      return NextResponse.json({ error: 'One or more selected sessions are invalid for this event.' }, { status: 400 });
+    }
+
+    // 5. Generate unique Pass ID and QR Code Data (now a URL)
+    const passId = generatePassId();
+    // QR code will now encode the direct URL to the PDF pass
+    const passUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/event-pass-pdf/${passId}`;
+    const qrCodeDataUrl = await QRCode.toDataURL(passUrl); // Generates QR code as a base64 data URL from the URL
+
+    // 6. Create Event Registration and link selected occurrences in a transaction
+    // Correctly type the 'tx' parameter using Prisma.TransactionClient
+    const newRegistration = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const reg = await tx.eventRegistration.create({ // Use `tx` here
+        data: {
+          userId: user.id,
+          eventId: eventId,
+          passId: passId,
+          qrCodeData: qrCodeDataUrl, // Store the base64 URL of the QR code
+          status: 'registered', // Default status for new public registrations
+          selectedOccurrences: {
+            create: selectedOccurrenceIds.map((occId: string) => ({
               occurrence: {
-                startTime: 'asc'
+                connect: { id: occId }
               }
+            })),
+          },
+        },
+        include: {
+          user: true,
+          event: {
+            include: {
+              occurrences: true // Include all event occurrences
+            }
+          },
+          selectedOccurrences: {
+            include: {
+              occurrence: true // Include details of the selected occurrences
             }
           }
         },
-      }),
-      prisma.eventRegistration.count({ where }), // Get total count for pagination
-    ]);
+      });
 
-    return NextResponse.json({ data: registrations, total });
+      return reg;
+    });
 
-  } catch (error: unknown) {
-    console.error('Error fetching registrations:', error);
-    if (error instanceof PrismaClientKnownRequestError) {
-      // P2002 is for unique constraint violation, P2025 for record not found etc.
-      // The current error `Unknown field selectedOccurrences` is a validation error.
-      // This implies the schema is not updated in Prisma Client.
-      return NextResponse.json({ error: `Database error: ${error.message}` }, { status: 500 });
+    // 7. Send registration confirmation email
+    if (newRegistration) {
+      await sendRegistrationEmail(newRegistration);
     }
+
+    return NextResponse.json({ message: 'Registration successful! Check your email for pass details.', registrationId: newRegistration.id, passId: newRegistration.passId }, { status: 201 });
+
+  } catch (error: any) {
+    console.error('Public registration failed:', error);
+
+    if (error.code === 'P2002' && error.meta?.target === 'EventRegistration_userId_eventId_key') {
+      return NextResponse.json({ error: 'You are already registered for this event.' }, { status: 409 });
+    }
+    // Handle other Prisma or general errors
     if (error instanceof Error) {
       return NextResponse.json({ error: `An unexpected error occurred: ${error.message}` }, { status: 500 });
     }
-    return NextResponse.json({ error: 'Something went wrong.' }, { status: 500 });
+    return NextResponse.json({ error: 'Something went wrong during registration.' }, { status: 500 });
   }
 }
-
-// POST endpoint (optional, usually handled by public-register or an admin form)
-// This remains commented out as its primary use case is handled by /api/public-register
-// export async function POST(req: Request) {
-//   return NextResponse.json({ message: "POST not implemented for this route directly." }, { status: 501 });
-// }
