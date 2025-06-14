@@ -283,7 +283,7 @@ export default function RegistrationsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
-      <div className="w-full max-w-7xl mx-auto bg-white rounded-2xl border border-gray-100 shadow-xl p-8">
+      <div className="w-full mx-auto bg-white rounded-2xl border border-gray-100 shadow-xl p-8">
         <h1 className="text-2xl font-semibold text-center text-black mb-6">Event Registrations</h1>
 
         {/* Top Controls: Items per page, Search Bar */}
