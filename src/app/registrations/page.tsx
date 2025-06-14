@@ -4,7 +4,6 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import axiosInstance from "@/lib/api";
 import Link from "next/link";
-// import { useAuth } from "@/context/AuthContext"; // Authentication no longer required for this page
 
 // Define interfaces for data structures
 interface EventOccurrence {
@@ -33,8 +32,8 @@ interface Registration {
     location: string;
   };
   selectedOccurrences: {
-    id: string;
-    occurrence: EventOccurrence;
+    id: string; // ID of the EventOccurrenceRegistration join table entry
+    occurrence: EventOccurrence; // The actual occurrence details
   }[];
 }
 
@@ -81,23 +80,18 @@ export default function RegistrationsPage() {
   const [editingRegistration, setEditingRegistration] = useState<Registration | null>(null);
   const [editFormData, setEditFormData] = useState<Partial<Registration>>({});
   const [editErrors, setEditErrors] = useState<any>({});
+  const [resendingEmailId, setResendingEmailId] = useState<string | null>(null); // New state for loading on email resend
 
 
-  // Fetch ALL registrations (or paginated/filtered by backend for specific needs)
-  // For client-side search, ideally the initial fetch might be all data, then paginate client-side.
-  // If backend pagination is kept, search will only work on the current page's data.
-  // Given the request "search only required for the fetched data not need check on the api",
-  // I will assume the initial fetch is still paginated/filtered by other criteria from backend,
-  // and then the search term will filter *that subset*.
   const fetchRegistrations = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams();
-      // Only send pagination and other filters to backend
+      // Pagination and server-side filters are sent to backend
       params.append('page', currentPage.toString());
       params.append('limit', itemsPerPage.toString());
-      if (sortConfig.key) { // Send sorting to backend for optimal first load
+      if (sortConfig.key) {
         params.append('sortBy', String(sortConfig.key));
         params.append('sortDirection', sortConfig.direction);
       }
@@ -105,9 +99,8 @@ export default function RegistrationsPage() {
       if (filters.eventName) params.append('eventName', filters.eventName);
       if (filters.userEmail) params.append('userEmail', filters.userEmail);
 
-
       const response = await axiosInstance.get<{ data: Registration[]; total: number }>(`/api/registrations?${params.toString()}`);
-      setAllRegistrations(response.data.data); // Store fetched data
+      setAllRegistrations(response.data.data); // Store fetched data (which is already paginated/filtered by backend)
       setTotalFilteredItems(response.data.total); // Total from backend for backend filters/pagination
     } catch (err: any) {
       console.error("Failed to fetch registrations:", err);
@@ -122,31 +115,35 @@ export default function RegistrationsPage() {
     fetchRegistrations();
   }, [fetchRegistrations]);
 
-  // Client-side filtering and sorting of `allRegistrations` to `displayedRegistrations`
-  useEffect(() => {
-    let filtered = allRegistrations;
+  // Client-side filtering of `allRegistrations` based on `searchTerm`
+  // This memoized function applies the search filter to the current page's data.
+  const filteredAndSortedRegistrations = useMemo(() => {
+    let currentData = [...allRegistrations]; // Start with the data fetched for the current page/filters
 
     // Apply client-side search
     if (searchTerm) {
       const lowercasedSearchTerm = searchTerm.toLowerCase();
-      filtered = filtered.filter(reg =>
+      currentData = currentData.filter(reg =>
         (reg.user.firstName?.toLowerCase().includes(lowercasedSearchTerm) ||
          reg.user.lastName?.toLowerCase().includes(lowercasedSearchTerm) ||
          reg.user.email.toLowerCase().includes(lowercasedSearchTerm) ||
          reg.user.company?.toLowerCase().includes(lowercasedSearchTerm) ||
          reg.event.name.toLowerCase().includes(lowercasedSearchTerm) ||
-         reg.passId.toLowerCase().includes(lowercasedSearchTerm))
+         reg.passId.toLowerCase().includes(lowercasedSearchTerm) ||
+         // Search within occurrences location
+         reg.selectedOccurrences.some(so => so.occurrence.location?.toLowerCase().includes(lowercasedSearchTerm))
+        )
       );
     }
-    // Note: Other filters (status, eventName, userEmail) are still handled by the backend GET API
-    // by changing fetchRegistrations dependencies. If you want *all* filters client-side,
-    // you would remove them from fetchRegistrations params and apply them here.
 
-    setDisplayedRegistrations(filtered); // Update displayed list
-    // If search term is applied client-side, total items count for client-side pagination should reflect filtered count
-    setTotalFilteredItems(filtered.length);
+    // Set the total filtered items for client-side pagination display
+    setTotalFilteredItems(currentData.length);
+    return currentData; // This is the data to be displayed in the table
+  }, [allRegistrations, searchTerm]); // Re-run when fetched data or search term changes
 
-  }, [allRegistrations, searchTerm]); // Re-run when data or search term changes
+  useEffect(() => {
+    setDisplayedRegistrations(filteredAndSortedRegistrations);
+  }, [filteredAndSortedRegistrations]);
 
 
   // Handle items per page change
@@ -161,13 +158,13 @@ export default function RegistrationsPage() {
     setCurrentPage(1); // Reset to first page so search applies from beginning
   };
 
-  // Handle filter changes (these still trigger API re-fetch, as per current API implementation)
+  // Handle filter changes (these still trigger API re-fetch)
   const handleFilterChange = (e: React.ChangeEvent<HTMLSelectElement | HTMLInputElement>) => {
     setFilters({ ...filters, [e.target.name]: e.target.value });
     setCurrentPage(1); // Reset to first page
   };
 
-  // Handle sorting
+  // Handle sorting (triggers API re-fetch for sorting if sortBy is sent to backend)
   const requestSort = (key: keyof Registration | 'user.firstName' | 'user.email' | 'event.name') => {
     let direction: SortConfig['direction'] = 'ascending';
     if (sortConfig.key === key && sortConfig.direction === 'ascending') {
@@ -253,6 +250,21 @@ export default function RegistrationsPage() {
     }
   };
 
+  // --- Resend Email functionality ---
+  const handleResendEmail = async (registrationId: string) => {
+    setResendingEmailId(registrationId); // Set loading state for this specific registration
+    try {
+      const response = await axiosInstance.post('/api/registrations/resend-email', { registrationId });
+      toast.success(response.data.message || "Email resent successfully!");
+    } catch (err: any) {
+      console.error("Failed to resend email:", err);
+      toast.error(err.response?.data?.error || "Failed to resend email.");
+    } finally {
+      setResendingEmailId(null); // Clear loading state
+    }
+  };
+
+
   if (loading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
@@ -271,7 +283,7 @@ export default function RegistrationsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-8">
-      <div className="w-full max-w mx-auto bg-white rounded-2xl border border-gray-100 shadow-xl p-8">
+      <div className="w-full max-w-7xl mx-auto bg-white rounded-2xl border border-gray-100 shadow-xl p-8">
         <h1 className="text-2xl font-semibold text-center text-black mb-6">Event Registrations</h1>
 
         {/* Top Controls: Items per page, Search Bar */}
@@ -456,17 +468,25 @@ export default function RegistrationsPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
                       <button
                         onClick={() => handleEditClick(reg)}
-                        className="text-indigo-600 hover:text-indigo-900 mr-4"
+                        className="text-indigo-600 hover:text-indigo-900 mr-2"
                         title="Edit Registration"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => handleDeleteClick(reg.id)}
-                        className="text-red-600 hover:text-red-900"
+                        className="text-red-600 hover:text-red-900 mr-2"
                         title="Delete Registration"
                       >
                         Delete
+                      </button>
+                      <button
+                        onClick={() => handleResendEmail(reg.id)}
+                        className={`text-blue-600 hover:text-blue-900 ${resendingEmailId === reg.id ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        title="Resend Registration Email"
+                        disabled={resendingEmailId === reg.id}
+                      >
+                        {resendingEmailId === reg.id ? 'Sending...' : 'Resend Email'}
                       </button>
                     </td>
                   </tr>
