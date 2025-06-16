@@ -147,7 +147,7 @@ export async function POST(req: Request) {
     do {
       try {
         const passId = await generatePassId(); // Generate new sequential pass ID
-        const passUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/api/event-pass-pdf/${passId}`;
+        const passUrl = `https://bri-event.vercel.app/api/event-pass-pdf/${passId}`;
         const qrCodeDataUrl = await QRCode.toDataURL(passUrl);
 
         // 6. Create Event Registration and link selected occurrences in a transaction
