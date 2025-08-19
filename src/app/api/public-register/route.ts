@@ -207,7 +207,7 @@ export async function POST(req: Request) {
     // Prepare arguments for sendEventPassEmail
     const toEmail = newRegistration.user.email;
     const eventName = newRegistration.event.name;
-     const pdfLink = `https://bri-event.vercel.app/api/event-pass-pdf/${registration.passId}`; // Assuming NEXT_PUBLIC_BASE_URL for frontend
+     const pdfLink = `https://bri-event.vercel.app/api/event-pass-pdf/${newRegistration.passId}`; // Assuming NEXT_PUBLIC_BASE_URL for frontend
     
     await sendEventPassEmail(toEmail, eventName, newRegistration, pdfLink);
 
