@@ -309,7 +309,7 @@ export default function RegistrationsPage() {
               placeholder="Search registrations..."
               value={searchTerm}
               onChange={handleSearchChange}
-              className="mt-1 block w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+              className="mt-1 block w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm text-black"
             />
           </div>
         </div>
@@ -340,7 +340,7 @@ export default function RegistrationsPage() {
                     value={filters.eventName}
                     onChange={handleFilterChange}
                     placeholder="Filter by event name"
-                    className="mt-1 block w-full rounded-md border p-2 border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                    className="mt-1 block w-full rounded-md border p-2 border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm text-black"
                 />
             </div>
             <div>
@@ -352,7 +352,7 @@ export default function RegistrationsPage() {
                     value={filters.userEmail}
                     onChange={handleFilterChange}
                     placeholder="Filter by user email"
-                    className="mt-1 block w-full rounded-md border p-2 border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                    className="mt-1 block w-full rounded-md border p-2 border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm text-black"
                 />
             </div>
         </div>
