@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import axiosInstance from "@/lib/api";
 import Link from "next/link";
+import Image from "next/image";
 // Removed 'Whatsapp' and 'Linkedin' from lucide-react import as they are not exported
 import { Copy, Share2 } from 'lucide-react';
 
@@ -118,7 +119,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
 
   return (
     <div className="min-h-screen w-screen flex items-center justify-center p-4"
-         style={{ background: 'linear-gradient(to bottom right, #1a2a6c, #b21f1f, #fdbb2d)' }}> {/* Blue-red-yellow gradient */}
+         style={{ background: 'linear-gradient(to bottom right, #071b48, #ea6b25)' }}> {/* Blue-red-yellow gradient */}
       <div className="w-full max-w-4xl bg-white bg-opacity-95 rounded-xl shadow-2xl overflow-hidden p-8 sm:p-12 text-gray-800"
            style={{ fontFamily: '"Inter", sans-serif' }}>
         {/* Branding Area (Placeholder) */}
@@ -130,9 +131,22 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
             <div className="w-2 h-2 rounded-full bg-blue-600"></div>
           </div>
           {/* Logo/Name */}
-          <div className="text-center">
-            <h1 className="text-2xl font-bold text-gray-900 uppercase">BLUE RHINE INDUSTRIES LLC</h1>
-          </div>
+          <div className="flex items-center justify-center">
+  {/* Set a predictable box for the logo; Image will scale to fit */}
+  <div className="relative h-8 w-48 sm:h-10 sm:w-64">
+    <Image
+      src="/logo.png"  // <-- put your PNG here (public/branding/bri-logo.png)
+      alt="Blue Rhine Industries"
+      fill
+      priority
+      sizes="(max-width: 640px) 12rem, 16rem"
+      className="object-contain"
+    />
+  </div>
+  {/* screen-reader text fallback */}
+  <span className="sr-only">Blue Rhine Industries</span>
+</div>
+
           {/* Top-right dots */}
           <div className="flex space-x-1">
             <div className="w-2 h-2 rounded-full bg-blue-600"></div>

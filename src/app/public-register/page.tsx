@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 import axiosInstance from "@/lib/api";
 import Link from "next/link";
+import Image from "next/image";
 
 interface EventOccurrence {
   id: string;
@@ -175,7 +176,7 @@ export default function PublicRegisterPage() {
       console.log("Public registration success", response.data);
       toast.success(response.data.message || "Registration successful! Check your email for pass details.");
       // Redirect to events page after successful registration
-      router.push("/events");
+      //router.push("/events");
     } catch (error: any) {
       console.error("Public registration failed", error);
 
@@ -251,7 +252,7 @@ export default function PublicRegisterPage() {
 
   return (
     <div className="min-h-screen w-screen flex items-center justify-center p-4"
-         style={{ background: 'linear-gradient(to bottom right, #1a2a6c, #b21f1f, #fdbb2d)' }}>
+         style={{ background: 'linear-gradient(to bottom right, #071b48, #ea6b25)' }}>
       <div className="w-full max-w-2xl bg-white bg-opacity-95 rounded-xl shadow-2xl overflow-hidden p-8 sm:p-12 text-gray-800"
            style={{ fontFamily: '"Inter", sans-serif' }}>
         {/* Header/Branding area */}
@@ -261,9 +262,17 @@ export default function PublicRegisterPage() {
             <div className="w-2 h-2 rounded-full bg-blue-600"></div>
             <div className="w-2 h-2 rounded-full bg-blue-600"></div>
           </div>
-          <div className="text-center">
-            <h1 className="text-xl font-bold text-gray-900 uppercase">BLUE RHINE INDUSTRIES LLC</h1>
-          </div>
+         {/* Set a predictable box for the logo; Image will scale to fit */}
+  <div className="relative h-8 w-48 sm:h-10 sm:w-64">
+    <Image
+      src="/logo.png"  // <-- put your PNG here (public/branding/bri-logo.png)
+      alt="Blue Rhine Industries"
+      fill
+      priority
+      sizes="(max-width: 640px) 12rem, 16rem"
+      className="object-contain"
+    />
+  </div>
           <div className="flex space-x-1">
             <div className="w-2 h-2 rounded-full bg-blue-600"></div>
             <div className="w-2 h-2 rounded-full bg-blue-600"></div>
