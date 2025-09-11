@@ -287,6 +287,7 @@ export default function RegistrationsPage() {
 
         {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+
           <div>
             <label htmlFor="filterStatus" className="block text-sm font-medium text-gray-700">Status:</label>
             <select
@@ -326,6 +327,47 @@ export default function RegistrationsPage() {
               className="mt-1 block w-full rounded-md border p-2 border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm text-black"
             />
           </div>
+=======
+            <div>
+                <label htmlFor="filterStatus" className="block text-sm font-medium text-gray-700">Status:</label>
+                <select
+                    id="filterStatus"
+                    name="status"
+                    value={filters.status}
+                    onChange={handleFilterChange}
+                    className="mt-1 block w-full rounded-md border p-2 text-black border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+                >
+                    <option value="">All</option>
+                    <option value="registered">Registered</option>
+                    <option value="checked-in">Checked-in</option>
+                    <option value="cancelled">Cancelled</option>
+                </select>
+            </div>
+            <div>
+                <label htmlFor="filterEventName" className="block text-sm font-medium text-gray-700">Event Name:</label>
+                <input
+                    id="filterEventName"
+                    name="eventName"
+                    type="text"
+                    value={filters.eventName}
+                    onChange={handleFilterChange}
+                    placeholder="Filter by event name"
+                    className="mt-1 block w-full rounded-md border p-2 border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm text-black"
+                />
+            </div>
+            <div>
+                <label htmlFor="filterUserEmail" className="block text-sm font-medium text-gray-700">User Email:</label>
+                <input
+                    id="filterUserEmail"
+                    name="userEmail"
+                    type="email"
+                    value={filters.userEmail}
+                    onChange={handleFilterChange}
+                    placeholder="Filter by user email"
+                    className="mt-1 block w-full rounded-md border p-2 border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm text-black"
+                />
+            </div>
+
         </div>
 
         {/* Table */}

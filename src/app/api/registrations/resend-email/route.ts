@@ -41,7 +41,10 @@ export async function POST(req: Request) {
     // Prepare arguments for sendEventPassEmail
     const toEmail = registration.user.email;
     const eventName = registration.event.name;
+
     const pdfLink = `https://bri-event.vercel.app/api/event-pass-pdf/${registration.passId}`;
+
+
 
     // Call the email service to send the registration email with all required arguments.
     console.log(registration);
