@@ -440,7 +440,6 @@ export default function RegistrationsPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           <Link href={`/api/event-pass-pdf/${reg.passId}`} className="text-blue-600 hover:underline">{reg.passId}</Link>
                         </td>
-
                         {/* Actions as icon buttons */}
                         <td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
                           <div className="flex items-center gap-2">
