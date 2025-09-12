@@ -97,7 +97,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
       <div className="flex h-screen w-screen flex-col items-center justify-center bg-gray-900 text-white">
         <div className="text-xl font-semibold text-red-400">{error}</div>
         <Link href="/events" className="mt-4 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors">
-            Back to Events
+          Back to Events
         </Link>
       </div>
     );
@@ -108,7 +108,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
       <div className="flex h-screen w-screen flex-col items-center justify-center bg-gray-900 text-white">
         <div className="text-xl font-semibold text-gray-400">Event not found.</div>
         <Link href="/events" className="mt-4 px-4 py-2 bg-gray-700 text-white rounded-md hover:bg-gray-600 transition-colors">
-            Back to Events
+          Back to Events
         </Link>
       </div>
     );
@@ -119,9 +119,9 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
 
   return (
     <div className="min-h-screen w-screen flex items-center justify-center p-4"
-         style={{ background: 'linear-gradient(to bottom right, #071b48, #3b82f6, #ffffff)' }}> {/* Blue-red-yellow gradient */}
+      style={{ background: 'linear-gradient(to bottom right, #071b48, #3b82f6, #ffffff)' }}> {/* Blue-red-yellow gradient */}
       <div className="w-full max-w-4xl bg-white bg-opacity-95 rounded-xl shadow-2xl overflow-hidden p-8 sm:p-12 text-gray-800"
-           style={{ fontFamily: '"Inter", sans-serif' }}>
+        style={{ fontFamily: '"Inter", sans-serif' }}>
         {/* Branding Area (Placeholder) */}
         <div className="flex justify-between items-center mb-8">
           {/* Top-left dots */}
@@ -132,20 +132,20 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
           </div>
           {/* Logo/Name */}
           <div className="flex items-center justify-center">
-  {/* Set a predictable box for the logo; Image will scale to fit */}
-  <div className="relative h-8 w-48 sm:h-10 sm:w-64">
-    <Image
-      src="/logo.png"  // <-- put your PNG here (public/branding/bri-logo.png)
-      alt="Blue Rhine Industries"
-      fill
-      priority
-      sizes="(max-width: 640px) 12rem, 16rem"
-      className="object-contain"
-    />
-  </div>
-  {/* screen-reader text fallback */}
-  <span className="sr-only">Blue Rhine Industries</span>
-</div>
+            {/* Set a predictable box for the logo; Image will scale to fit */}
+            <div className="relative h-8 w-48 sm:h-10 sm:w-64">
+              <Image
+                src="/logo.png"  // <-- put your PNG here (public/branding/bri-logo.png)
+                alt="Blue Rhine Industries"
+                fill
+                priority
+                sizes="(max-width: 640px) 12rem, 16rem"
+                className="object-contain"
+              />
+            </div>
+            {/* screen-reader text fallback */}
+            <span className="sr-only">Blue Rhine Industries</span>
+          </div>
 
           {/* Top-right dots */}
           <div className="flex space-x-1">
@@ -165,83 +165,76 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
 
         {/* Description Section */}
         <div className="text-center mb-8 px-4 sm:px-8">
-  <div className="text-md leading-relaxed text-gray-700 space-y-4">
-    {(event.description || "Join us as we unveil our next chapter in digital experience.")
-      .trim()
-      .split(/\n\s*\n/) // paragraphs
-      .map((para, idx) => (
-        <p
-          key={idx}
-          className="whitespace-pre-line"
-          style={{ textAlign: "justify", textJustify: "inter-word" }}
-        >
-          {para}
-        </p>
-      ))}
-  </div>
-</div>
+          <div className="text-md leading-relaxed text-gray-700 space-y-4">
+            {(event.description || "Join us as we unveil our next chapter in digital experience.")
+              .trim()
+              .split(/\n\s*\n/) // paragraphs
+              .map((para, idx) => (
+                <p
+                  key={idx}
+                  className="whitespace-pre-line"
+                  style={{ textAlign: "justify", textJustify: "inter-word" }}
+                >
+                  {para}
+                </p>
+              ))}
+          </div>
+        </div>
 
 
         {/* Occurrences / Sessions Section (one line per date, Dubai localized) */}
-{event.occurrences && event.occurrences.length > 0 && (
+       {event.occurrences && event.occurrences.length > 0 && (
   <div className="bg-gray-100 p-3 rounded-lg mb-8 shadow-inner">
     <h3 className="text-lg font-semibold text-center text-gray-800 mb-4">
       Event Sessions
     </h3>
 
     <div className="grid grid-flow-row gap-2">
-    {Object.entries(occurrencesByDate).map(([date, occurrences]) => {
-  // Date heading in the user's default locale (no explicit locale or timeZone)
-  const dateHeading = new Date(occurrences[0].startTime).toLocaleDateString(
-    undefined,
-    { weekday: "long", year: "numeric", month: "long", day: "numeric" }
-  );
+      {Object.entries(occurrencesByDate).map(([date, occurrences]) => {
+        // Date heading (no explicit locale / timezone)
+        const dateHeading = new Date(occurrences[0].startTime).toLocaleDateString(undefined, {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        });
 
-  // Build a single line for all sessions on this date
-  const line = occurrences
-    .map((occ) => {
-      const s = new Date(occ.startTime);
-      const e = occ.endTime ? new Date(occ.endTime) : null;
+        // Build a single line for all sessions on this date
+        const line = occurrences
+          .map((occ) => {
+         
+ const startTime = new Date(occ.startTime).toLocaleTimeString(undefined, {
+                      hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "UTC"
+                    });
 
-      const t1 = s.toLocaleTimeString(undefined, {
-        hour: "2-digit",
-        minute: "2-digit",
-        hour12: true,
-      });
+                    const endTime = new Date(occ.endTime).toLocaleTimeString(undefined, {
+                      hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "UTC"
+                    });
 
-      const t2 = e
-        ? e.toLocaleTimeString(undefined, {
-            hour: "2-digit",
-            minute: "2-digit",
-            hour12: true,
+            const loc =
+              occ.location && occ.location !== event.location ? ` (${occ.location})` : "";
+
+            return endTime ? `${startTime} - ${endTime}${loc}` : `${startTime}${loc}`;
           })
-        : null;
+          .join(" • ");
 
-      const loc =
-        occ.location && occ.location !== event.location
-          ? ` (${occ.location})`
-          : "";
-
-      return t2 ? `${t1} - ${t2}${loc}` : `${t1}${loc}`;
-    })
-    .join(" • ");
-
-  return (
-    <div
-      key={date}
-      className="border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm"
-    >
-      {/* Force single line with horizontal scroll if too long */}
-      <div className="text-xs sm:text-sm text-gray-700 overflow-x-auto">
-        <div className="whitespace-nowrap">
-          <span className="font-bold text-blue-700">{dateHeading}:</span>{" "}
-          <span className="align-middle">{line}</span>
-        </div>
-      </div>
-    </div>
-  );
-})}
-
+        return (
+          <div
+            key={date}
+            className="border border-gray-300 rounded-lg px-3 py-2 bg-white shadow-sm"
+          >
+            {/* Mobile: stacked & wrapping. md+: one-line with optional horizontal scroll */}
+            <div className="text-xs sm:text-sm text-gray-700">
+              <div className="flex flex-col md:flex-row md:items-center md:gap-2">
+                <span className="font-bold text-blue-700 shrink-0">{dateHeading}:</span>
+                <span className="mt-1 md:mt-0 md:whitespace-nowrap md:overflow-x-auto md:[scrollbar-width:none] md:[-ms-overflow-style:none] md:[&::-webkit-scrollbar]:hidden">
+                  {line}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
     </div>
   </div>
 )}
@@ -249,48 +242,48 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
 
         {/* Action Buttons: Register, Get Link, Share */}
         <div className="text-center mb-8 flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
-            <Link
-                href={`/public-register?eventId=${event.id}`}
-                className="inline-flex items-center justify-center px-8 py-2 border border-transparent text-xl font-bold rounded-full shadow-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-105"
-            >
-                Click to Join Us!
-            </Link>
-            <button
-                onClick={handleCopyLink}
-                className="inline-flex items-center justify-center px-8 py-2 border border-gray-300 text-lg font-bold rounded-full shadow-lg text-gray-800 bg-white hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-300 transition-all duration-300 transform hover:scale-105"
-            >
-                <Copy size={20} className="mr-2" /> Get Link
-            </button>
-            <button
-                onClick={toggleShareOptions}
-                className="inline-flex items-center justify-center px-8 py-2 border border-gray-300 text-lg font-bold rounded-full shadow-lg text-gray-800 bg-white hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-300 transition-all duration-300 transform hover:scale-105"
-            >
-                <Share2 size={20} className="mr-2" /> Share
-            </button>
+          <Link
+            href={`/public-register?eventId=${event.id}`}
+            className="inline-flex items-center justify-center px-8 py-2 border border-transparent text-xl font-bold rounded-full shadow-lg text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 transition-all duration-300 transform hover:scale-105"
+          >
+            Click to Join Us!
+          </Link>
+          <button
+            onClick={handleCopyLink}
+            className="inline-flex items-center justify-center px-8 py-2 border border-gray-300 text-lg font-bold rounded-full shadow-lg text-gray-800 bg-white hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-300 transition-all duration-300 transform hover:scale-105"
+          >
+            <Copy size={20} className="mr-2" /> Get Link
+          </button>
+          <button
+            onClick={toggleShareOptions}
+            className="inline-flex items-center justify-center px-8 py-2 border border-gray-300 text-lg font-bold rounded-full shadow-lg text-gray-800 bg-white hover:bg-gray-100 focus:outline-none focus:ring-4 focus:ring-gray-300 transition-all duration-300 transform hover:scale-105"
+          >
+            <Share2 size={20} className="mr-2" /> Share
+          </button>
         </div>
 
         {/* Share Options */}
         {showShareOptions && (
-            <div className="mt-4 mb-8 flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-4">
-                <a
-                    href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-full transition-colors duration-200 shadow-md"
-                >
-                    {/* Placeholder for WhatsApp icon */}
-                    <span className="mr-2">WA</span> Share on WhatsApp
-                </a>
-                <a
-                    href={`https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(eventShareUrl)}&title=${encodeURIComponent(event.name)}&summary=${encodeURIComponent(event.description || '')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 px-4 rounded-full transition-colors duration-200 shadow-md"
-                >
-                    {/* Placeholder for LinkedIn icon */}
-                    <span className="mr-2">IN</span> Share on LinkedIn
-                </a>
-            </div>
+          <div className="mt-4 mb-8 flex flex-col sm:flex-row justify-center space-y-2 sm:space-y-0 sm:space-x-4">
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(shareText)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-full transition-colors duration-200 shadow-md"
+            >
+              {/* Placeholder for WhatsApp icon */}
+              <span className="mr-2">WA</span> Share on WhatsApp
+            </a>
+            <a
+              href={`https://www.linkedin.com/shareArticle?mini=true&url=${encodeURIComponent(eventShareUrl)}&title=${encodeURIComponent(event.name)}&summary=${encodeURIComponent(event.description || '')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center bg-blue-700 hover:bg-blue-800 text-white font-semibold py-2 px-4 rounded-full transition-colors duration-200 shadow-md"
+            >
+              {/* Placeholder for LinkedIn icon */}
+              <span className="mr-2">IN</span> Share on LinkedIn
+            </a>
+          </div>
         )}
 
         {/* Additional Event Info (Contact, Capacity, etc.) */}
@@ -328,7 +321,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
             </p>
           )}
         </div>
-        
+
       </div>
     </div>
   );
