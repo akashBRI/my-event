@@ -256,7 +256,7 @@ export default function PublicRegisterPage() {
     
         {selectedEventDetails && (
           <div className="mb-6 text-center">
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-blue-800 leading-tight"> {selectedEventDetails.name}</h2>
+            <h2 className="text-2xl sm:text-1xl font-extrabold text-blue-800 leading-tight"> {selectedEventDetails.name}</h2>
             <div className="mt-1 inline-flex items-center gap-2 text-gray-700">
               <MapPin className="h-4 w-4 text-blue-600" />
               <span className="font-medium">{selectedEventDetails.location}</span>
