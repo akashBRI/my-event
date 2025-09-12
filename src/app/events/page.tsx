@@ -131,19 +131,25 @@ export default function EventsPage() {
 
   const eventUrl = (id: string) => `${origin}/events/${id}`;
 
-  const formatDateShort = (iso: string) =>
-    new Date(iso).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-    });
+ // Dubai localization
+const DUBAI_TZ = "Asia/Dubai";
+const DUBAI_LOCALE = "en-AE"; // use "ar-AE" for Arabic
 
-  const formatTime = (iso: string) =>
-    new Date(iso).toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
+const formatDateShort = (iso: string) =>
+  new Date(iso).toLocaleDateString(DUBAI_LOCALE, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    timeZone: DUBAI_TZ,
+  });
+
+const formatTime = (iso: string) =>
+  new Date(iso).toLocaleTimeString(DUBAI_LOCALE, {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+    timeZone: DUBAI_TZ,
+  });
 
   const sessionSummary = (e: Event) => {
     if (!e.occurrences || e.occurrences.length === 0) return "N/A";

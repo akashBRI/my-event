@@ -203,7 +203,7 @@ export default function PublicRegisterPage() {
   return (
     <div
       className="min-h-screen w-screen flex items-center justify-center p-4"
-      style={{ background: "linear-gradient(to bottom right, #071b48, #ea6b25)" }}
+       style={{ background: 'linear-gradient(to bottom right, #071b48, #3b82f6, #ffffff)' }}
     >
       <div
         className="w-full max-w-2xl bg-white bg-opacity-95 rounded-xl shadow-2xl overflow-hidden p-8 sm:p-12 text-gray-800"
@@ -235,7 +235,7 @@ export default function PublicRegisterPage() {
 
         {/* Title */}
         <div className="text-center mb-8">
-          <h2 className="text-3xl sm:text-4xl font-extrabold text-blue-800 leading-tight">Event Registration</h2>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-blue-800 leading-tight">Event Registration</h2>
           <p className="text-md mt-2 text-gray-600">Sign up for your preferred session(s).</p>
         </div>
 
@@ -246,18 +246,10 @@ export default function PublicRegisterPage() {
           </div>
         )}
 
-        {/* Selected Event Summary */}
-        {selectedEventDetails && (
-          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg text-blue-800 text-center">
-            <h4 className="text-lg font-semibold mb-2">You are registering for:</h4>
-            <p className="text-md font-bold">{selectedEventDetails.name}</p>
-            <p className="text-sm">{selectedEventDetails.description}</p>
-            <p className="text-sm">Main Location: {selectedEventDetails.location}</p>
-          </div>
-        )}
+     
 
         {/* Form */}
-        <div className="space-y-6 mb-8 px-4 sm:px-8">
+        <div className="space-y-6 mb-8 px-4 sm:px-2">
           {/* Personal Info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -377,7 +369,7 @@ export default function PublicRegisterPage() {
                       >
                         <input
                           type="checkbox"
-                          className="h-5 w-5 mt-0.5 text-blue-600 rounded focus:ring-blue-500"
+                          className="h-5 w-5 mt-3 text-blue-600 rounded focus:ring-blue-500"
                           checked={checked}
                           onChange={() => handleToggleOccurrence(occ.id)}
                         />
@@ -410,7 +402,7 @@ export default function PublicRegisterPage() {
           <button
             onClick={onRegister}
             disabled={buttonDisabled || loading}
-            className={`inline-flex items-center justify-center px-8 py-4 border border-transparent text-xl font-bold rounded-full shadow-lg text-white transition-all duration-300 transform ${
+            className={`inline-flex items-center justify-center px-12 py-2 border border-transparent text-xl font-bold rounded-full shadow-lg text-white transition-all duration-300 transform ${
               buttonDisabled || loading
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-4 focus:ring-blue-300 hover:scale-105"
@@ -430,11 +422,11 @@ export default function PublicRegisterPage() {
               "Register Now"
             )}
           </button>
-          <p className="mt-4 text-sm text-gray-600">
+          {/* <p className="mt-4 text-sm text-gray-600">
             <Link href="/events" className="font-semibold text-blue-700 hover:underline">
               Back to Events
             </Link>
-          </p>
+          </p> */}
         </div>
       </div>
     </div>

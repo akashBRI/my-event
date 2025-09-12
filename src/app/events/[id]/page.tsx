@@ -119,7 +119,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
 
   return (
     <div className="min-h-screen w-screen flex items-center justify-center p-4"
-         style={{ background: 'linear-gradient(to bottom right, #071b48, #ea6b25)' }}> {/* Blue-red-yellow gradient */}
+         style={{ background: 'linear-gradient(to bottom right, #071b48, #3b82f6, #ffffff)' }}> {/* Blue-red-yellow gradient */}
       <div className="w-full max-w-4xl bg-white bg-opacity-95 rounded-xl shadow-2xl overflow-hidden p-8 sm:p-12 text-gray-800"
            style={{ fontFamily: '"Inter", sans-serif' }}>
         {/* Branding Area (Placeholder) */}
@@ -158,45 +158,98 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
         {/* Invitation and Event Title */}
         <div className="text-center mb-8">
           <p className="text-lg text-gray-600 mb-2">YOU ARE INVITED TO</p>
-          <h2 className="text-4xl sm:text-4xl font-extrabold text-blue-800 leading-tight">
+          <h2 className="text-4xl sm:text-3xl font-extrabold text-blue-800 leading-tight">
             {event.name.toUpperCase()}
           </h2>
         </div>
 
         {/* Description Section */}
         <div className="text-center mb-8 px-4 sm:px-8">
-          <p className="text-lg leading-relaxed text-gray-700">
-            {event.description || "Join us as we unveil our next chapter in digital experience."}
-          </p>
-          <p className="text-md mt-4 text-gray-600">
-            Experience the tech firsthand, and see how we&apos;re reshaping digital spaces.
-          </p>
-        </div>
+  <div className="text-md leading-relaxed text-gray-700 space-y-4">
+    {(event.description || "Join us as we unveil our next chapter in digital experience.")
+      .trim()
+      .split(/\n\s*\n/) // paragraphs
+      .map((para, idx) => (
+        <p
+          key={idx}
+          className="whitespace-pre-line"
+          style={{ textAlign: "justify", textJustify: "inter-word" }}
+        >
+          {para}
+        </p>
+      ))}
+  </div>
+</div>
 
-        {/* Occurrences / Sessions Section */}
-        {event.occurrences && event.occurrences.length > 0 && (
-          <div className="bg-gray-100 p-6 rounded-lg mb-8 shadow-inner">
-            <h3 className="text-xl font-semibold text-center text-gray-800 mb-4">Event Sessions</h3>
-            <div className="grid grid-flow-row gap-2">
-              {Object.entries(occurrencesByDate).map(([date, occurrences]) => (
-                <div key={date} className="border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm">
-                  <h4 className="text-md font-bold text-blue-700 mb-2">{date}</h4>
-                  <ul className="grid grid-flow-row gap-2">
-                    {occurrences.map((occ, occIndex) => (
-                      <li key={occ.id || occIndex} className="text-xs text-gray-700 px-4">
-                        <span className="font-semibold">
-                          {new Date(occ.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          {occ.endTime ? ` - ${new Date(occ.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}
-                        </span>
-                        {occ.location && occ.location !== event.location ? ` (${occ.location})` : ''}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
+
+        {/* Occurrences / Sessions Section (one line per date, Dubai localized) */}
+{event.occurrences && event.occurrences.length > 0 && (
+  <div className="bg-gray-100 p-3 rounded-lg mb-8 shadow-inner">
+    <h3 className="text-lg font-semibold text-center text-gray-800 mb-4">
+      Event Sessions
+    </h3>
+
+    <div className="grid grid-flow-row gap-2">
+      {Object.entries(occurrencesByDate).map(([date, occurrences]) => {
+        const DUBAI_TZ = "Asia/Dubai";
+        const DUBAI_LOCALE = "en-AE"; // use "ar-AE" for Arabic
+
+        // Format the date heading in Dubai timezone
+        const dateHeading = new Date(occurrences[0].startTime).toLocaleDateString(
+          DUBAI_LOCALE,
+          { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: DUBAI_TZ }
+        );
+
+        // Build a single line for all sessions on this date
+        const line = occurrences
+          .map((occ) => {
+            const s = new Date(occ.startTime);
+            const e = occ.endTime ? new Date(occ.endTime) : null;
+
+            const t1 = s.toLocaleTimeString(DUBAI_LOCALE, {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+              timeZone: DUBAI_TZ,
+            });
+
+            const t2 = e
+              ? e.toLocaleTimeString(DUBAI_LOCALE, {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                  hour12: true,
+                  timeZone: DUBAI_TZ,
+                })
+              : null;
+
+            const loc =
+              occ.location && occ.location !== event.location
+                ? ` (${occ.location})`
+                : "";
+
+            return t2 ? `${t1} - ${t2}${loc}` : `${t1}${loc}`;
+          })
+          .join(" • ");
+
+        return (
+          <div
+            key={date}
+            className="border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm"
+          >
+            {/* Force single line with horizontal scroll if too long */}
+            <div className="text-xs sm:text-sm text-gray-700 overflow-x-auto">
+              <div className="whitespace-nowrap">
+                <span className="font-bold text-blue-700">{dateHeading}:</span>{" "}
+                <span className="align-middle">{line}</span>
+              </div>
             </div>
           </div>
-        )}
+        );
+      })}
+    </div>
+  </div>
+)}
+
 
         {/* Action Buttons: Register, Get Link, Share */}
         <div className="text-center mb-8 flex flex-col sm:flex-row justify-center space-y-4 sm:space-y-0 sm:space-x-4">
