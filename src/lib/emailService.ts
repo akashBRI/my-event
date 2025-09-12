@@ -85,14 +85,21 @@ export const sendEventPassEmail = async (
     registration.selectedOccurrences.sort((a, b) => a.occurrence.startTime.getTime() - b.occurrence.startTime.getTime())
       .forEach(selectedOcc => {
         const occ = selectedOcc.occurrence;
-        const startTime = occ.startTime.toLocaleString('en-US', {
-          weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-          hour: '2-digit', minute: '2-digit', hour12: true
-        });
-        let endTime = '';
-        if (occ.endTime) {
-          endTime = ` - ${occ.endTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}`;
-        }
+        const startTime = new Date(occ.startTime).toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "UTC", // remove if you don't want to force UTC
+    });
+
+    const endTime = occ.endTime
+      ? new Date(occ.endTime).toLocaleTimeString(undefined, {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "UTC", // remove if you don't want to force UTC
+        })
+      : null;
         const locationDetail = occ.location && occ.location !== registration.event.location ? ` (${occ.location})` : '';
         occurrencesHtml += `
           <li style="margin-bottom: 10px; font-size: 14px; color: #555555; line-height: 1.5;">

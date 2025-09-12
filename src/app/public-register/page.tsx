@@ -164,10 +164,11 @@ export default function PublicRegisterPage() {
 
     try {
       setLoading(true);
+       const urlEventId = searchParams.get("eventId");
       const payload = { ...formData };
       const res = await axiosInstance.post("/api/public-register", payload);
       toast.success(res.data.message || "Registration successful! Check your email for pass details.");
-      // router.push("/events");
+      router.push(`/events/${urlEventId}`);
     } catch (error: any) {
       const msg =
         error?.response?.data?.error ||
@@ -225,7 +226,7 @@ export default function PublicRegisterPage() {
       style={{ background: "linear-gradient(to bottom right, #071b48, #3b82f6, #ffffff)" }}
     >
       <div
-        className="w-full max-w-fit bg-white bg-opacity-95 rounded-xl shadow-2xl overflow-hidden p-6 sm:p-8 text-gray-800"
+        className="w-full max-w-4xl bg-white bg-opacity-95 rounded-xl shadow-2xl overflow-hidden p-6 sm:p-8 text-gray-800"
         style={{ fontFamily: '"Inter", sans-serif' }}
       >
         {/* Header / Branding */}
