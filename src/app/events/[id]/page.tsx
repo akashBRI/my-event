@@ -191,11 +191,9 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
 
     <div className="grid grid-flow-row gap-2">
     {Object.entries(occurrencesByDate).map(([date, occurrences]) => {
-  const LOCALE = "en-AE"; // use "en-US" if you want guaranteed AM/PM style
-
-  // Date heading in local time (no timeZone option)
+  // Date heading in the user's default locale (no explicit locale or timeZone)
   const dateHeading = new Date(occurrences[0].startTime).toLocaleDateString(
-    LOCALE,
+    undefined,
     { weekday: "long", year: "numeric", month: "long", day: "numeric" }
   );
 
@@ -205,14 +203,14 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
       const s = new Date(occ.startTime);
       const e = occ.endTime ? new Date(occ.endTime) : null;
 
-      const t1 = s.toLocaleTimeString(LOCALE, {
+      const t1 = s.toLocaleTimeString(undefined, {
         hour: "2-digit",
         minute: "2-digit",
         hour12: true,
       });
 
       const t2 = e
-        ? e.toLocaleTimeString(LOCALE, {
+        ? e.toLocaleTimeString(undefined, {
             hour: "2-digit",
             minute: "2-digit",
             hour12: true,
