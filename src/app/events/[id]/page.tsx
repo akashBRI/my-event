@@ -190,62 +190,60 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
     </h3>
 
     <div className="grid grid-flow-row gap-2">
-      {Object.entries(occurrencesByDate).map(([date, occurrences]) => {
-        const DUBAI_TZ = "Asia/Dubai";
-        const DUBAI_LOCALE = "en-AE"; // use "ar-AE" for Arabic
+    {Object.entries(occurrencesByDate).map(([date, occurrences]) => {
+  const LOCALE = "en-AE"; // use "en-US" if you want guaranteed AM/PM style
 
-        // Format the date heading in Dubai timezone
-        const dateHeading = new Date(occurrences[0].startTime).toLocaleDateString(
-          DUBAI_LOCALE,
-          { weekday: "long", year: "numeric", month: "long", day: "numeric", timeZone: DUBAI_TZ }
-        );
+  // Date heading in local time (no timeZone option)
+  const dateHeading = new Date(occurrences[0].startTime).toLocaleDateString(
+    LOCALE,
+    { weekday: "long", year: "numeric", month: "long", day: "numeric" }
+  );
 
-        // Build a single line for all sessions on this date
-        const line = occurrences
-          .map((occ) => {
-            const s = new Date(occ.startTime);
-            const e = occ.endTime ? new Date(occ.endTime) : null;
+  // Build a single line for all sessions on this date
+  const line = occurrences
+    .map((occ) => {
+      const s = new Date(occ.startTime);
+      const e = occ.endTime ? new Date(occ.endTime) : null;
 
-            const t1 = s.toLocaleTimeString(DUBAI_LOCALE, {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: true,
-              timeZone: DUBAI_TZ,
-            });
+      const t1 = s.toLocaleTimeString(LOCALE, {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+      });
 
-            const t2 = e
-              ? e.toLocaleTimeString(DUBAI_LOCALE, {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                  hour12: true,
-                  timeZone: DUBAI_TZ,
-                })
-              : null;
-
-            const loc =
-              occ.location && occ.location !== event.location
-                ? ` (${occ.location})`
-                : "";
-
-            return t2 ? `${t1} - ${t2}${loc}` : `${t1}${loc}`;
+      const t2 = e
+        ? e.toLocaleTimeString(LOCALE, {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
           })
-          .join(" • ");
+        : null;
 
-        return (
-          <div
-            key={date}
-            className="border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm"
-          >
-            {/* Force single line with horizontal scroll if too long */}
-            <div className="text-xs sm:text-sm text-gray-700 overflow-x-auto">
-              <div className="whitespace-nowrap">
-                <span className="font-bold text-blue-700">{dateHeading}:</span>{" "}
-                <span className="align-middle">{line}</span>
-              </div>
-            </div>
-          </div>
-        );
-      })}
+      const loc =
+        occ.location && occ.location !== event.location
+          ? ` (${occ.location})`
+          : "";
+
+      return t2 ? `${t1} - ${t2}${loc}` : `${t1}${loc}`;
+    })
+    .join(" • ");
+
+  return (
+    <div
+      key={date}
+      className="border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm"
+    >
+      {/* Force single line with horizontal scroll if too long */}
+      <div className="text-xs sm:text-sm text-gray-700 overflow-x-auto">
+        <div className="whitespace-nowrap">
+          <span className="font-bold text-blue-700">{dateHeading}:</span>{" "}
+          <span className="align-middle">{line}</span>
+        </div>
+      </div>
+    </div>
+  );
+})}
+
     </div>
   </div>
 )}
