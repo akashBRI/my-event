@@ -203,13 +203,22 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
         const line = occurrences
           .map((occ) => {
          
- const startTime = new Date(occ.startTime).toLocaleTimeString(undefined, {
-                      hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "UTC"
-                    });
+const startTime = new Date(occ.startTime).toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "UTC", // remove if you don't want to force UTC
+    });
 
-                    const endTime = new Date(occ.endTime).toLocaleTimeString(undefined, {
-                      hour: "2-digit", minute: "2-digit", hour12: true, timeZone: "UTC"
-                    });
+    const endTime = occ.endTime
+      ? new Date(occ.endTime).toLocaleTimeString(undefined, {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "UTC", // remove if you don't want to force UTC
+        })
+      : null;
+
 
             const loc =
               occ.location && occ.location !== event.location ? ` (${occ.location})` : "";
