@@ -13,8 +13,10 @@ import {
   Mail,
   Phone,
   MapPin,
-  Eye, // <-- added
+  Eye,
+  QrCode, // <-- QR icon
 } from "lucide-react";
+import QRCode from "qrcode"; // <-- npm i qrcode
 
 /* ---------------- Types ---------------- */
 interface EventOccurrence {
@@ -92,6 +94,12 @@ export default function EventsPage() {
   const [eventToDelete, setEventToDelete] = useState<Event | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // QR modal
+  const [qrOpen, setQrOpen] = useState(false);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [qrPngDataUrl, setQrPngDataUrl] = useState<string | null>(null);
+  const [qrForEvent, setQrForEvent] = useState<{ id: string; url: string; name: string } | null>(null);
+
   /* ---------------- Data fetch ---------------- */
   useEffect(() => {
     const fetchEvents = async () => {
@@ -116,6 +124,13 @@ export default function EventsPage() {
   }, []);
 
   /* ---------------- Helpers ---------------- */
+  const origin =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "https://bri-event.vercel.app"; // fallback to your domain
+
+  const eventUrl = (id: string) => `${origin}/events/${id}`;
+
   const formatDateShort = (iso: string) =>
     new Date(iso).toLocaleDateString("en-US", {
       year: "numeric",
@@ -277,6 +292,38 @@ export default function EventsPage() {
     }
   };
 
+  // QR logic
+  const openQrForEvent = async (ev: Event) => {
+    try {
+      setQrOpen(true);
+      setQrLoading(true);
+      const url = eventUrl(ev.id);
+
+      // "Smallest" QR: tiny size, no margin
+      const dataUrl = await QRCode.toDataURL(url, {
+        margin: 0,
+        scale: 4,      // small bitmap
+        width: 128,    // compact footprint
+        errorCorrectionLevel: "M", // decent readability while staying small
+      });
+
+      setQrPngDataUrl(dataUrl);
+      setQrForEvent({ id: ev.id, url, name: ev.name });
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to generate QR code.");
+      setQrOpen(false);
+    } finally {
+      setQrLoading(false);
+    }
+  };
+
+  const closeQr = () => {
+    setQrOpen(false);
+    setQrPngDataUrl(null);
+    setQrForEvent(null);
+  };
+
   /* ---------------- UI ---------------- */
   if (loading) {
     return (
@@ -343,24 +390,6 @@ export default function EventsPage() {
             </Link>
           </div>
         </div>
-
-        {/* Optional extra filters (kept, but you can hide/remove if unused) */}
-        {/* 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Name</label>
-            <input name="name" value={filters.name} onChange={handleFilterChange} className="mt-1 block w-full rounded-md border p-2 text-black border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Location</label>
-            <input name="location" value={filters.location} onChange={handleFilterChange} className="mt-1 block w-full rounded-md border p-2 text-black border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700">Contact Email</label>
-            <input name="contactEmail" value={filters.contactEmail} onChange={handleFilterChange} className="mt-1 block w-full rounded-md border p-2 text-black border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm" />
-          </div>
-        </div>
-        */}
 
         {/* Table */}
         <div className="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
@@ -512,6 +541,15 @@ export default function EventsPage() {
                               aria-label="Edit"
                             >
                               <Pencil className="h-4 w-4" />
+                            </button>
+                            {/* QR CODE */}
+                            <button
+                              onClick={() => openQrForEvent(e)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                              title="QR Code"
+                              aria-label="QR Code"
+                            >
+                              <QrCode className="h-4 w-4" />
                             </button>
                             {/* DELETE */}
                             <button
@@ -699,6 +737,52 @@ export default function EventsPage() {
                 {deleting ? "Deleting..." : "Delete"}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR Modal */}
+      {qrOpen && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-75 flex items-center justify-center z-50">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-full max-w-xs text-center">
+            <h3 className="text-base font-semibold mb-3 text-black">
+              Event QR Code
+            </h3>
+            {qrLoading ? (
+              <div className="text-sm text-gray-600">Generating...</div>
+            ) : (
+              <>
+                {qrPngDataUrl && (
+                  <img
+                    src={qrPngDataUrl}
+                    alt="Event QR"
+                    className="mx-auto mb-3 h-28 w-28"
+                  />
+                )}
+                {qrForEvent && (
+                  <div className="text-xs text-gray-600 break-words mb-3">
+                    {qrForEvent.url}
+                  </div>
+                )}
+                <div className="flex items-center justify-center gap-2">
+                  {qrPngDataUrl && (
+                    <a
+                      href={qrPngDataUrl}
+                      download={qrForEvent ? `${qrForEvent.id}-qr.png` : "event-qr.png"}
+                      className="px-3 py-2 rounded-md bg-black text-white text-xs hover:bg-gray-800"
+                    >
+                      Download PNG
+                    </a>
+                  )}
+                  <button
+                    onClick={closeQr}
+                    className="px-3 py-2 rounded-md border border-gray-300 text-gray-700 text-xs hover:bg-gray-50"
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
