@@ -3,8 +3,8 @@ import React, { useEffect, useState, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-hot-toast";
 import axiosInstance from "@/lib/api";
-import Link from "next/link";
 import Image from "next/image";
+import { MapPin } from "lucide-react";
 
 interface EventOccurrence {
   id: string;
@@ -37,7 +37,7 @@ export default function PublicRegisterPage() {
     phone: "",
     company: "",
     eventId: "",
-    selectedOccurrenceIds: [] as string[], // <-- multiple selection
+    selectedOccurrenceIds: [] as string[], // multi-select
   });
 
   const [errors, setErrors] = useState({
@@ -50,6 +50,24 @@ export default function PublicRegisterPage() {
     selectedOccurrenceIds: "",
   });
 
+  // show red borders/messages only when a field has been touched OR after submit attempt
+  const [touched, setTouched] = useState({
+    firstName: false,
+    lastName: false,
+    email: false,
+    phone: false,
+    company: false,
+    eventId: false,
+    selectedOccurrenceIds: false,
+  });
+  const [submitted, setSubmitted] = useState(false);
+
+  const touch = (name: keyof typeof touched) =>
+    setTouched((t) => ({ ...t, [name]: true }));
+
+  const showErr = (name: keyof typeof errors) =>
+    (submitted || touched[name]) && Boolean(errors[name]);
+
   const [apiError, setApiError] = useState("");
   const [buttonDisabled, setButtonDisabled] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -57,7 +75,7 @@ export default function PublicRegisterPage() {
   const [selectedEventDetails, setSelectedEventDetails] = useState<Event | null>(null);
   const [initialDataLoading, setInitialDataLoading] = useState(true);
 
-  // Fetch all events (and optionally preselect from URL)
+  // Fetch all events and preselect from URL if present
   useEffect(() => {
     const fetchAllEvents = async () => {
       try {
@@ -66,16 +84,15 @@ export default function PublicRegisterPage() {
 
         const urlEventId = searchParams.get("eventId");
         if (urlEventId) {
-          const foundEvent = response.data.find((ev) => ev.id === urlEventId);
-          if (foundEvent) {
-            setFormData((prev) => ({ ...prev, eventId: urlEventId }));
-            setSelectedEventDetails(foundEvent);
+          const found = response.data.find((ev) => ev.id === urlEventId);
+          if (found) {
+            setFormData((p) => ({ ...p, eventId: urlEventId }));
+            setSelectedEventDetails(found);
           } else {
             toast.error("Event ID in URL not found. Please select an event.");
           }
         }
-      } catch (err) {
-        console.error("Failed to fetch events:", err);
+      } catch {
         toast.error("Failed to load events. Please try again later.");
       } finally {
         setInitialDataLoading(false);
@@ -84,11 +101,11 @@ export default function PublicRegisterPage() {
     fetchAllEvents();
   }, [searchParams]);
 
-  // When event changes, load its details and reset selections
+  // Refresh selected event details on change
   useEffect(() => {
     const current = events.find((e) => e.id === formData.eventId) || null;
     setSelectedEventDetails(current);
-    setFormData((prev) => ({ ...prev, selectedOccurrenceIds: [] })); // clear selections on event change
+    setFormData((p) => ({ ...p, selectedOccurrenceIds: [] }));
   }, [formData.eventId, events]);
 
   const validateEmail = (email: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -104,67 +121,64 @@ export default function PublicRegisterPage() {
       eventId: "",
       selectedOccurrenceIds: "",
     };
-    let isValid = true;
+    let ok = true;
 
-    if (!formData.firstName.trim()) { formErrors.firstName = "First Name is required."; isValid = false; }
-    if (!formData.lastName.trim()) { formErrors.lastName = "Last Name is required."; isValid = false; }
+    if (!formData.firstName.trim()) { formErrors.firstName = "First Name is required."; ok = false; }
+    if (!formData.lastName.trim()) { formErrors.lastName = "Last Name is required."; ok = false; }
 
-    if (!formData.email) { formErrors.email = "Email is required."; isValid = false; }
-    else if (!validateEmail(formData.email)) { formErrors.email = "Invalid email format."; isValid = false; }
+    if (!formData.email) { formErrors.email = "Email is required."; ok = false; }
+    else if (!validateEmail(formData.email)) { formErrors.email = "Invalid email format."; ok = false; }
 
-    if (!formData.phone.trim()) { formErrors.phone = "Phone number is required."; isValid = false; }
-    else if (!validatePhone(formData.phone)) { formErrors.phone = "Invalid phone number format."; isValid = false; }
+    if (!formData.phone.trim()) { formErrors.phone = "Phone number is required."; ok = false; }
+    else if (!validatePhone(formData.phone)) { formErrors.phone = "Invalid phone number format."; ok = false; }
 
-    if (!formData.company.trim()) { formErrors.company = "Company/Organization is required."; isValid = false; }
-
-    if (!formData.eventId) { formErrors.eventId = "Event is required."; isValid = false; }
-
-    if (!formData.selectedOccurrenceIds.length) {
-      formErrors.selectedOccurrenceIds = "Please select at least one session.";
-      isValid = false;
-    }
+    if (!formData.company.trim()) { formErrors.company = "Company/Organization is required."; ok = false; }
+    if (!formData.eventId) { formErrors.eventId = "Event is required."; ok = false; }
+    if (!formData.selectedOccurrenceIds.length) { formErrors.selectedOccurrenceIds = "Please select at least one session."; ok = false; }
 
     setErrors(formErrors);
-    setButtonDisabled(!isValid);
-    return isValid;
+    setButtonDisabled(!ok);
+    return ok;
   }, [formData]);
 
-  // Toggle a session checkbox
+  useEffect(() => {
+    if (!initialDataLoading) handleValidation();
+  }, [formData, initialDataLoading, handleValidation]);
+
+  // Toggle a session checkbox (also mark group as touched)
   const handleToggleOccurrence = (occurrenceId: string) => {
+    setTouched((t) => ({ ...t, selectedOccurrenceIds: true }));
     setFormData((prev) => {
       const exists = prev.selectedOccurrenceIds.includes(occurrenceId);
-      const nextIds = exists
+      const next = exists
         ? prev.selectedOccurrenceIds.filter((id) => id !== occurrenceId)
         : [...prev.selectedOccurrenceIds, occurrenceId];
-      return { ...prev, selectedOccurrenceIds: nextIds };
+      return { ...prev, selectedOccurrenceIds: next };
     });
   };
 
   const onRegister = async () => {
+    setSubmitted(true);
     setApiError("");
     if (!handleValidation()) return;
 
     try {
       setLoading(true);
-      const payload = { ...formData }; // already has selectedOccurrenceIds: string[]
-      const response = await axiosInstance.post("/api/public-register", payload);
-      toast.success(response.data.message || "Registration successful! Check your email for pass details.");
-      // router.push("/events"); // enable if you want redirect
+      const payload = { ...formData };
+      const res = await axiosInstance.post("/api/public-register", payload);
+      toast.success(res.data.message || "Registration successful! Check your email for pass details.");
+      // router.push("/events");
     } catch (error: any) {
-      console.error("Public registration failed", error);
-      const errorMessage = error.response?.data?.error
-        || (error.request ? "No response from server. Please check your internet connection." : error.message)
-        || "An unexpected error occurred.";
-      setApiError(errorMessage);
-      toast.error(errorMessage);
+      const msg =
+        error?.response?.data?.error ||
+        (error?.request ? "No response from server. Please check your internet connection." : error?.message) ||
+        "An unexpected error occurred.";
+      setApiError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    if (!initialDataLoading) handleValidation();
-  }, [formData, initialDataLoading, handleValidation]);
 
   if (initialDataLoading) {
     return (
@@ -174,39 +188,44 @@ export default function PublicRegisterPage() {
     );
   }
 
-  // Pretty session formatter
-  const formatOccurrence = (occ: EventOccurrence) => {
-    const start = new Date(occ.startTime);
-    const end = occ.endTime ? new Date(occ.endTime) : null;
+  const formatOccurrenceOneLine = (occ: EventOccurrence) => {
+    const s = new Date(occ.startTime);
 
-    const date = start.toLocaleDateString("en-US", {
+    const dateStr = s.toLocaleDateString(undefined, {
       weekday: "long",
       year: "numeric",
       month: "long",
       day: "numeric",
     });
 
-    const startTime = start.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
-    const endTime = end ? end.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true }) : "";
-    const timeRange = endTime ? `${startTime} - ${endTime}` : startTime;
+    const t1 = new Date(occ.startTime).toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+      timeZone: "UTC", // remove if you don't want to force UTC
+    });
 
-    const locationPart = occ.location && selectedEventDetails?.location !== occ.location ? occ.location : "";
+    const t2 = occ.endTime
+      ? new Date(occ.endTime).toLocaleTimeString(undefined, {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "UTC", // remove if you don't want to force UTC
+        })
+      : null;
 
-    return (
-      <>
-        <span className="block font-semibold">{date} {timeRange}</span>
-        {locationPart && <span className="block text-sm text-gray-600">{locationPart}</span>}
-      </>
-    );
+    const loc = occ.location && occ.location !== selectedEventDetails?.location ? ` (${occ.location})` : "";
+
+    return `${dateStr} ${t1}${t2 ? ` - ${t2}` : ""}${loc}`;
   };
 
   return (
     <div
       className="min-h-screen w-screen flex items-center justify-center p-4"
-       style={{ background: 'linear-gradient(to bottom right, #071b48, #3b82f6, #ffffff)' }}
+      style={{ background: "linear-gradient(to bottom right, #071b48, #3b82f6, #ffffff)" }}
     >
       <div
-        className="w-full max-w-2xl bg-white bg-opacity-95 rounded-xl shadow-2xl overflow-hidden p-8 sm:p-12 text-gray-800"
+        className="w-full max-w-fit bg-white bg-opacity-95 rounded-xl shadow-2xl overflow-hidden p-6 sm:p-8 text-gray-800"
         style={{ fontFamily: '"Inter", sans-serif' }}
       >
         {/* Header / Branding */}
@@ -233,11 +252,18 @@ export default function PublicRegisterPage() {
           </div>
         </div>
 
-        {/* Title */}
-        <div className="text-center mb-8">
-          <h2 className="text-2xl sm:text-3xl font-extrabold text-blue-800 leading-tight">Event Registration</h2>
-          <p className="text-md mt-2 text-gray-600">Sign up for your preferred session(s).</p>
-        </div>
+    
+        {selectedEventDetails && (
+          <div className="mb-6 text-center">
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-blue-800 leading-tight"> {selectedEventDetails.name}</h2>
+            <div className="mt-1 inline-flex items-center gap-2 text-gray-700">
+              <MapPin className="h-4 w-4 text-blue-600" />
+              <span className="font-medium">{selectedEventDetails.location}</span>
+            </div>
+            
+          <p className="text-md mt-2 text-gray-600">Sign up for your preferred session(s)</p>
+          </div>
+        )}
 
         {/* API Error */}
         {apiError && (
@@ -246,89 +272,87 @@ export default function PublicRegisterPage() {
           </div>
         )}
 
-     
-
         {/* Form */}
         <div className="space-y-6 mb-8 px-4 sm:px-2">
           {/* Personal Info */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 First Name <span className="text-red-500">*</span>
               </label>
               <input
-                id="firstName"
                 type="text"
-                className={`w-full rounded-md border ${errors.firstName ? "border-red-500" : "border-gray-300"} px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500`}
+                onBlur={() => touch("firstName")}
+                className={`w-full rounded-md border ${showErr("firstName") ? "border-red-500" : "border-gray-300"} px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500`}
                 value={formData.firstName}
                 onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
               />
-              {errors.firstName && <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>}
+              {showErr("firstName") && <p className="mt-1 text-sm text-red-500">{errors.firstName}</p>}
             </div>
             <div>
-              <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Last Name <span className="text-red-500">*</span>
               </label>
               <input
-                id="lastName"
                 type="text"
-                className={`w-full rounded-md border ${errors.lastName ? "border-red-500" : "border-gray-300"} px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500`}
+                onBlur={() => touch("lastName")}
+                className={`w-full rounded-md border ${showErr("lastName") ? "border-red-500" : "border-gray-300"} px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500`}
                 value={formData.lastName}
                 onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
               />
-              {errors.lastName && <p className="mt-1 text-sm text-red-500">{errors.lastName}</p>}
+              {showErr("lastName") && <p className="mt-1 text-sm text-red-500">{errors.lastName}</p>}
             </div>
             <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Email <span className="text-red-500">*</span>
               </label>
               <input
-                id="email"
                 type="email"
-                className={`w-full rounded-md border ${errors.email ? "border-red-500" : "border-gray-300"} px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500`}
+                onBlur={() => touch("email")}
+                className={`w-full rounded-md border ${showErr("email") ? "border-red-500" : "border-gray-300"} px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500`}
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               />
-              {errors.email && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
+              {showErr("email") && <p className="mt-1 text-sm text-red-500">{errors.email}</p>}
             </div>
             <div>
-              <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Phone <span className="text-red-500">*</span>
               </label>
               <input
-                id="phone"
                 type="tel"
-                className={`w-full rounded-md border ${errors.phone ? "border-red-500" : "border-gray-300"} px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500`}
+                onBlur={() => touch("phone")}
+                className={`w-full rounded-md border ${showErr("phone") ? "border-red-500" : "border-gray-300"} px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500`}
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
               />
-              {errors.phone && <p className="mt-1 text-sm text-red-500">{errors.phone}</p>}
+              {showErr("phone") && <p className="mt-1 text-sm text-red-500">{errors.phone}</p>}
             </div>
           </div>
 
           <div>
-            <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-gray-700 mb-1">
               Company/Organization <span className="text-red-500">*</span>
             </label>
             <input
-              id="company"
               type="text"
-              className={`w-full rounded-md border ${errors.company ? "border-red-500" : "border-gray-300"} px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500`}
+              onBlur={() => touch("company")}
+              className={`w-full rounded-md border ${showErr("company") ? "border-red-500" : "border-gray-300"} px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500`}
               value={formData.company}
               onChange={(e) => setFormData({ ...formData, company: e.target.value })}
             />
-            {errors.company && <p className="mt-1 text-sm text-red-500">{errors.company}</p>}
+            {showErr("company") && <p className="mt-1 text-sm text-red-500">{errors.company}</p>}
           </div>
 
           {/* Event Selector (if not pre-selected) */}
           {!searchParams.get("eventId") && (
             <div>
-              <label htmlFor="eventId" className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Select Event <span className="text-red-500">*</span>
               </label>
               <select
-                id="eventId"
-                className={`w-full rounded-md border ${errors.eventId ? "border-red-500" : "border-gray-300"} px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500`}
+                onBlur={() => touch("eventId")}
+                className={`w-full rounded-md border ${showErr("eventId") ? "border-red-500" : "border-gray-300"} px-3 py-2 shadow-sm focus:border-blue-500 focus:ring-blue-500`}
                 value={formData.eventId}
                 onChange={(e) => setFormData({ ...formData, eventId: e.target.value })}
               >
@@ -339,11 +363,11 @@ export default function PublicRegisterPage() {
                   </option>
                 ))}
               </select>
-              {errors.eventId && <p className="mt-1 text-sm text-red-500">{errors.eventId}</p>}
+              {showErr("eventId") && <p className="mt-1 text-sm text-red-500">{errors.eventId}</p>}
             </div>
           )}
 
-          {/* Occurrence checkboxes (multi-select) */}
+          {/* Occurrence checkboxes (multi-select, one-line + mobile responsive) */}
           {selectedEventDetails && selectedEventDetails.occurrences.length > 0 && (
             <div className="bg-gray-100 p-4 rounded-lg shadow-inner">
               <div className="flex items-baseline justify-between mb-3">
@@ -354,6 +378,7 @@ export default function PublicRegisterPage() {
                   Selected: <strong>{formData.selectedOccurrenceIds.length}</strong>
                 </span>
               </div>
+
               <div className="space-y-2">
                 {selectedEventDetails.occurrences
                   .slice()
@@ -363,24 +388,27 @@ export default function PublicRegisterPage() {
                     return (
                       <label
                         key={occ.id}
-                        className={`flex items-start p-2 border rounded-md bg-white cursor-pointer hover:bg-gray-50 ${
+                        className={`flex items-center p-2 border rounded-md bg-white cursor-pointer hover:bg-gray-50 ${
                           checked ? "border-blue-400" : "border-gray-300"
                         }`}
                       >
                         <input
                           type="checkbox"
-                          className="h-5 w-5 mt-3 text-blue-600 rounded focus:ring-blue-500"
+                          className="h-5 w-5 flex-shrink-0 text-blue-600 rounded focus:ring-blue-500"
                           checked={checked}
                           onChange={() => handleToggleOccurrence(occ.id)}
+                          onBlur={() => touch("selectedOccurrenceIds")}
                         />
-                        <span className="ml-3 text-sm font-medium text-gray-700 flex flex-col">
-                          {formatOccurrence(occ)}
+                        {/* One line text with horizontal scroll on narrow screens */}
+                        <span className="ml-3 text-xs sm:text-sm text-gray-700 overflow-x-auto whitespace-nowrap w-full min-w-0">
+                          {formatOccurrenceOneLine(occ)}
                         </span>
                       </label>
                     );
                   })}
               </div>
-              {errors.selectedOccurrenceIds && (
+
+              {showErr("selectedOccurrenceIds") && (
                 <p className="mt-1 text-sm text-red-500">{errors.selectedOccurrenceIds}</p>
               )}
 
@@ -422,11 +450,6 @@ export default function PublicRegisterPage() {
               "Register Now"
             )}
           </button>
-          {/* <p className="mt-4 text-sm text-gray-600">
-            <Link href="/events" className="font-semibold text-blue-700 hover:underline">
-              Back to Events
-            </Link>
-          </p> */}
         </div>
       </div>
     </div>
