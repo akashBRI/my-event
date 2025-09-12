@@ -1,14 +1,17 @@
+// src/app/events/edit/[id]/page.tsx
 "use client";
+
 import React, { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import axiosInstance from "@/lib/api";
 import Link from "next/link";
 
+/* ---------------- Types ---------------- */
 interface EventOccurrenceFormData {
   id?: string;            // keep existing id if present (helps backend reconcile)
-  startTime: string;      // "YYYY-MM-DDTHH:mm" (local for input)
-  endTime: string;        // "YYYY-MM-DDTHH:mm" (local for input) or ""
+  startTime: string;      // EXACT string from input: "YYYY-MM-DDTHH:mm"
+  endTime: string;        // EXACT string from input: "YYYY-MM-DDTHH:mm" or ""
   location: string;       // optional override
 }
 
@@ -23,22 +26,26 @@ interface EventDetail {
   maxCapacity: number | null;
   occurrences: Array<{
     id: string;
-    startTime: string;    // ISO
+    startTime: string;    // whatever server stored (ISO or naive); we won't shift it
     endTime: string | null;
     location: string | null;
   }>;
 }
 
-function toLocalInputValue(isoLike: string | null | undefined): string {
+/* ---------------- Helpers (NO timezone conversion) ---------------- */
+/**
+ * Extract "YYYY-MM-DDTHH:mm" without converting timezones.
+ * Accepts ISO-like strings or naive strings and returns a value suitable for <input type="datetime-local" />.
+ */
+function toInputNoTZ(isoLike: string | null | undefined): string {
   if (!isoLike) return "";
-  const d = new Date(isoLike);
-  if (isNaN(d.getTime())) return "";
-  // shift to local so toISOString() represents local wall time
-  const off = d.getTimezoneOffset();
-  const local = new Date(d.getTime() - off * 60000);
-  return local.toISOString().slice(0, 16); // "YYYY-MM-DDTHH:mm"
+  const s = String(isoLike).trim();
+  // Match "YYYY-MM-DDTHH:mm" at the start; allow space between date & time too
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/);
+  return m ? `${m[1]}T${m[2]}` : "";
 }
 
+/* ---------------- Component ---------------- */
 export default function EditEventPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { id } = params;
@@ -70,7 +77,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // --- Fetch existing event & prefill ---
+  /* ---------------- Load existing event ---------------- */
   useEffect(() => {
     const fetchEvent = async () => {
       setLoading(true);
@@ -90,8 +97,8 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
           occurrences:
             e.occurrences?.map((o) => ({
               id: o.id,
-              startTime: toLocalInputValue(o.startTime),
-              endTime: toLocalInputValue(o.endTime),
+              startTime: toInputNoTZ(o.startTime), // NO TZ SHIFT
+              endTime: toInputNoTZ(o.endTime),     // NO TZ SHIFT
               location: o.location ?? "",
             })) || [{ startTime: "", endTime: "", location: "" }],
         });
@@ -108,7 +115,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
     if (id) fetchEvent();
   }, [id]);
 
-  // --- Validation helpers (relaxed for edit: allow past times) ---
+  /* ---------------- Validation (no timezone logic) ---------------- */
   const validateEmail = (email: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 
@@ -181,6 +188,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
           ok = false;
         }
         if (occ.startTime && occ.endTime) {
+          // String compare by Date just to ensure not reversed; still no tz conversion on save
           const st = new Date(occ.startTime);
           const et = new Date(occ.endTime);
           if (!isNaN(st.getTime()) && !isNaN(et.getTime()) && et < st) {
@@ -198,11 +206,10 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
   }, [formData]);
 
   useEffect(() => {
-    // Re-validate whenever form changes (and after initial load)
     if (!loading) handleValidation();
   }, [formData, loading, handleValidation]);
 
-  // --- Occurrence controls ---
+  /* ---------------- Occurrence controls ---------------- */
   const handleOccurrenceChange = (
     index: number,
     field: keyof EventOccurrenceFormData,
@@ -227,14 +234,15 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
     }));
   };
 
-  // --- Submit update ---
+  /* ---------------- Submit (PUT) ---------------- */
   const onUpdateEvent = async () => {
     setApiError("");
     if (!handleValidation()) return;
 
     try {
       setSaving(true);
-      // Prepare payload. If your API supports occurrence IDs, include them.
+
+      // Send exactly what user typed; backend should persist as provided.
       const payload = {
         name: formData.name.trim(),
         description: formData.description.trim(),
@@ -244,16 +252,15 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
         contactPhone: formData.contactPhone.trim(),
         maxCapacity: formData.maxCapacity ? parseInt(formData.maxCapacity, 10) : null,
         occurrences: formData.occurrences.map((o) => ({
-          id: o.id, // keep if present; backend may use it to update instead of recreate
-          startTime: o.startTime, // send as local "YYYY-MM-DDTHH:mm" (same as your create page)
-          endTime: o.endTime || null,
+          id: o.id,
+          startTime: o.startTime,         // e.g. "2025-06-19T15:00" (no tz conversion)
+          endTime: o.endTime || null,     // e.g. "2025-06-19T16:45" or null
           location: o.location || null,
         })),
       };
 
       const res = await axiosInstance.put(`/api/events/${id}`, payload);
       toast.success("Event updated successfully!");
-      // If backend returns the ID (same), navigate to details:
       const eid = res.data?.id || id;
       router.push(`/events/${eid}`);
     } catch (error: any) {
@@ -269,7 +276,7 @@ export default function EditEventPage({ params }: { params: { id: string } }) {
     }
   };
 
-  // --- UI ---
+  /* ---------------- UI ---------------- */
   if (loading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
