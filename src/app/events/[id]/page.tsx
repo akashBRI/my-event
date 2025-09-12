@@ -177,13 +177,13 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
         {event.occurrences && event.occurrences.length > 0 && (
           <div className="bg-gray-100 p-6 rounded-lg mb-8 shadow-inner">
             <h3 className="text-xl font-semibold text-center text-gray-800 mb-4">Event Sessions</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-flow-row gap-2">
               {Object.entries(occurrencesByDate).map(([date, occurrences]) => (
-                <div key={date} className="border border-gray-300 rounded-lg p-4 bg-white shadow-sm">
-                  <h4 className="text-lg font-bold text-blue-700 mb-2">{date}</h4>
-                  <ul className="space-y-2">
+                <div key={date} className="border border-gray-300 rounded-lg px-4 py-2 bg-white shadow-sm">
+                  <h4 className="text-md font-bold text-blue-700 mb-2">{date}</h4>
+                  <ul className="grid grid-flow-row gap-2">
                     {occurrences.map((occ, occIndex) => (
-                      <li key={occ.id || occIndex} className="text-sm text-gray-700">
+                      <li key={occ.id || occIndex} className="text-xs text-gray-700 px-4">
                         <span className="font-semibold">
                           {new Date(occ.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                           {occ.endTime ? ` - ${new Date(occ.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}

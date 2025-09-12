@@ -286,7 +286,7 @@ export default function RegistrationsPage() {
         </div>
 
         {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        {/* <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
 
           <div>
             <label htmlFor="filterStatus" className="block text-sm font-medium text-gray-700">Status:</label>
@@ -327,7 +327,7 @@ export default function RegistrationsPage() {
               className="mt-1 block w-full rounded-md border p-2 border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm text-black"
             />
           </div>
-=======
+
             <div>
                 <label htmlFor="filterStatus" className="block text-sm font-medium text-gray-700">Status:</label>
                 <select
@@ -368,7 +368,7 @@ export default function RegistrationsPage() {
                 />
             </div>
 
-        </div>
+        </div> */}
 
         {/* Table */}
         <div className="overflow-x-auto rounded-lg shadow-sm border border-gray-200">

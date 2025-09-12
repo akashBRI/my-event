@@ -4,7 +4,17 @@ import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import axiosInstance from "@/lib/api";
 import Link from "next/link";
-import { ChevronDown, Pencil, Trash2, CalendarDays, Users, Mail, Phone, MapPin } from "lucide-react";
+import {
+  ChevronDown,
+  Pencil,
+  Trash2,
+  CalendarDays,
+  Users,
+  Mail,
+  Phone,
+  MapPin,
+  Eye, // <-- added
+} from "lucide-react";
 
 /* ---------------- Types ---------------- */
 interface EventOccurrence {
@@ -34,12 +44,7 @@ interface Event {
   }>;
 }
 
-type SortKey =
-  | "name"
-  | "location"
-  | "createdAt"
-  | "updatedAt"
-  | "maxCapacity";
+type SortKey = "name" | "location" | "createdAt" | "updatedAt" | "maxCapacity";
 
 interface SortConfig {
   key: SortKey;
@@ -60,7 +65,7 @@ export default function EventsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // UI state like the Registrations page
+  // UI state
   const [searchTerm, setSearchTerm] = useState("");
   const [filters, setFilters] = useState<FilterConfig>({
     name: "",
@@ -94,7 +99,6 @@ export default function EventsPage() {
       setError(null);
       try {
         const response = await axiosInstance.get<Event[]>("/api/events");
-        // You can sort here or leave as-is; we keep newest first by default
         const data = [...response.data].sort(
           (a, b) =>
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
@@ -112,13 +116,6 @@ export default function EventsPage() {
   }, []);
 
   /* ---------------- Helpers ---------------- */
-  const formatDate = (iso: string) =>
-    new Date(iso).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "long",
-      day: "numeric",
-    });
-
   const formatDateShort = (iso: string) =>
     new Date(iso).toLocaleDateString("en-US", {
       year: "numeric",
@@ -151,7 +148,6 @@ export default function EventsPage() {
   const filtered = useMemo(() => {
     let data = [...events];
 
-    // text search across a few fields
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       data = data.filter(
@@ -164,7 +160,6 @@ export default function EventsPage() {
       );
     }
 
-    // dedicated filters
     if (filters.name) {
       const v = filters.name.toLowerCase();
       data = data.filter((e) => e.name.toLowerCase().includes(v));
@@ -190,13 +185,11 @@ export default function EventsPage() {
       let va: any = a[key];
       let vb: any = b[key];
 
-      // Handle null capacities
       if (key === "maxCapacity") {
         va = va ?? -1;
         vb = vb ?? -1;
       }
 
-      // Treat dates as Date objects
       if (key === "createdAt" || key === "updatedAt") {
         va = new Date(va).getTime();
         vb = new Date(vb).getTime();
@@ -213,7 +206,7 @@ export default function EventsPage() {
     return data;
   }, [filtered, sortConfig]);
 
-  /* ---------------- Pagination (client-side) ---------------- */
+  /* ---------------- Pagination ---------------- */
   const totalFilteredItems = sorted.length;
   const totalPages = Math.ceil(totalFilteredItems / itemsPerPage) || 1;
   const startIdx = (currentPage - 1) * itemsPerPage;
@@ -254,8 +247,12 @@ export default function EventsPage() {
     setCurrentPage(1);
   };
 
+  const handleView = (id: string) => {
+    router.push(`/events/${id}`);
+  };
+
   const handleEdit = (id: string) => {
-    router.push(`/events/${id}/edit`); // change if your edit route differs
+    router.push(`/events/edit/${id}`);
   };
 
   const handleDeleteClick = (ev: Event) => {
@@ -305,7 +302,8 @@ export default function EventsPage() {
         </h1>
 
         {/* Top Controls */}
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 space-y-4 sm:space-y-0 sm:space-x-4">
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+          {/* Items per page */}
           <div className="flex items-center space-x-2 w-full sm:w-auto">
             <label
               htmlFor="itemsPerPage"
@@ -326,17 +324,43 @@ export default function EventsPage() {
             </select>
           </div>
 
-          <div className="w-full sm:w-1/3">
+          {/* Search + New Event button grouped */}
+          <div className="w-full sm:w-auto flex items-center gap-3">
             <input
               type="text"
               placeholder="Search events..."
               value={searchTerm}
               onChange={handleSearchChange}
-              className="mt-1 block w-full border p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm text-black"
+              className="flex-1 sm:w-80 mt-1 block border p-2 rounded-md border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm text-black"
             />
+            <Link
+              href="/events/create"
+              className="inline-flex items-center justify-center whitespace-nowrap px-4 py-2 rounded-md bg-black text-white text-sm font-medium hover:bg-gray-800 transition-colors"
+              aria-label="Create new event"
+              title="Create new event"
+            >
+              New Event
+            </Link>
           </div>
         </div>
 
+        {/* Optional extra filters (kept, but you can hide/remove if unused) */}
+        {/* 
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Name</label>
+            <input name="name" value={filters.name} onChange={handleFilterChange} className="mt-1 block w-full rounded-md border p-2 text-black border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Location</label>
+            <input name="location" value={filters.location} onChange={handleFilterChange} className="mt-1 block w-full rounded-md border p-2 text-black border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Contact Email</label>
+            <input name="contactEmail" value={filters.contactEmail} onChange={handleFilterChange} className="mt-1 block w-full rounded-md border p-2 text-black border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm" />
+          </div>
+        </div>
+        */}
 
         {/* Table */}
         <div className="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
@@ -370,22 +394,6 @@ export default function EventsPage() {
                   {sortConfig.key === "maxCapacity" &&
                     (sortConfig.direction === "ascending" ? " ▲" : " ▼")}
                 </th>
-                {/* <th
-                  onClick={() => requestSort("createdAt")}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                >
-                  Created
-                  {sortConfig.key === "createdAt" &&
-                    (sortConfig.direction === "ascending" ? " ▲" : " ▼")}
-                </th>
-                <th
-                  onClick={() => requestSort("updatedAt")}
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
-                >
-                  Updated
-                  {sortConfig.key === "updatedAt" &&
-                    (sortConfig.direction === "ascending" ? " ▲" : " ▼")}
-                </th> */}
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -483,18 +491,20 @@ export default function EventsPage() {
                             )}
                           </div>
                         </td>
-{/* 
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {formatDate(e.createdAt)}
-                        </td>
-
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {formatDate(e.updatedAt)}
-                        </td> */}
 
                         {/* Actions */}
                         <td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
                           <div className="flex items-center gap-2">
+                            {/* VIEW */}
+                            <button
+                              onClick={() => handleView(e.id)}
+                              className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
+                              title="View"
+                              aria-label="View"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                            {/* EDIT */}
                             <button
                               onClick={() => handleEdit(e.id)}
                               className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50"
@@ -503,6 +513,7 @@ export default function EventsPage() {
                             >
                               <Pencil className="h-4 w-4" />
                             </button>
+                            {/* DELETE */}
                             <button
                               onClick={() => handleDeleteClick(e)}
                               className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 text-red-600 hover:bg-red-50"
@@ -563,7 +574,7 @@ export default function EventsPage() {
                                   })}
                               </ul>
 
-                              {/* Contact quick view (optional) */}
+                              {/* Contact quick view */}
                               <div className="mt-4 grid gap-3 sm:grid-cols-2">
                                 <div>
                                   <div className="text-xs uppercase tracking-wide text-gray-500">
@@ -617,7 +628,7 @@ export default function EventsPage() {
           </table>
         </div>
 
-        {/* Pagination (same style) */}
+        {/* Pagination */}
         <div className="flex justify-between items-center mt-6">
           <div className="text-sm text-gray-700">
             Showing {totalFilteredItems === 0 ? 0 : startIdx + 1} to{" "}
