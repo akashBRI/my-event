@@ -158,14 +158,14 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
         {/* Invitation and Event Title */}
         <div className="text-center mb-8">
           <p className="text-lg text-gray-600 mb-2">YOU ARE INVITED TO</p>
-          <h2 className="text-4xl sm:text-3xl font-extrabold text-blue-800 leading-tight">
+          <h2 className="text-lg md:text-3xl sm:text-xl font-extrabold text-blue-800 leading-tight">
             {event.name.toUpperCase()}
           </h2>
         </div>
 
         {/* Description Section */}
         <div className="text-center mb-8 px-4 sm:px-8">
-          <div className="text-md leading-relaxed text-gray-700 space-y-4">
+          <div className="text-sm md:text-lg leading-relaxed text-gray-700 space-y-4">
             {(event.description || "Join us as we unveil our next chapter in digital experience.")
               .trim()
               .split(/\n\s*\n/) // paragraphs
