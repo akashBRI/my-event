@@ -190,61 +190,72 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
     </h3>
 
     <div className="grid grid-flow-row gap-2">
-      {Object.entries(occurrencesByDate).map(([date, occurrences]) => {
-        // Date heading (no explicit locale / timezone)
-        const dateHeading = new Date(occurrences[0].startTime).toLocaleDateString(undefined, {
-          weekday: "long",
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        });
-
-        // Build a single line for all sessions on this date
-        const line = occurrences
-          .map((occ) => {
-         
-const startTime = new Date(occ.startTime).toLocaleTimeString(undefined, {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-      timeZone: "UTC", // remove if you don't want to force UTC
+  {Object.entries(occurrencesByDate).map(([date, occurrences]) => {
+    // Date heading
+    const dateHeading = new Date(occurrences[0].startTime).toLocaleDateString(undefined, {
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
     });
 
-    const endTime = occ.endTime
-      ? new Date(occ.endTime).toLocaleTimeString(undefined, {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-          timeZone: "UTC", // remove if you don't want to force UTC
-        })
-      : null;
+    // Sort per day
+    const occs = [...occurrences].sort(
+      (a, b) => new Date(a.startTime) - new Date(b.startTime)
+    );
 
-
-            const loc =
-              occ.location && occ.location !== event.location ? ` (${occ.location})` : "";
-
-            return endTime ? `${startTime} - ${endTime}${loc}` : `${startTime}${loc}`;
+    const formatTime = (occ) => {
+      const start = new Date(occ.startTime).toLocaleTimeString(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: "UTC", // remove if you don't want to force UTC
+      });
+      const end = occ.endTime
+        ? new Date(occ.endTime).toLocaleTimeString(undefined, {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+            timeZone: "UTC", // remove if you don't want to force UTC
           })
-          .join(" • ");
+        : null;
+      return end ? `${start} – ${end}` : start;
+    };
 
-        return (
-          <div
-            key={date}
-            className="border border-gray-300 rounded-lg px-3 py-2 bg-white shadow-sm"
-          >
-            {/* Mobile: stacked & wrapping. md+: one-line with optional horizontal scroll */}
-            <div className="text-xs sm:text-sm text-gray-700">
-              <div className="flex flex-col md:flex-row md:items-center md:gap-2">
-                <span className="font-bold text-blue-700 shrink-0">{dateHeading}:</span>
-                <span className="mt-1 md:mt-0 md:whitespace-nowrap md:overflow-x-auto md:[scrollbar-width:none] md:[-ms-overflow-style:none] md:[&::-webkit-scrollbar]:hidden">
-                  {line}
-                </span>
-              </div>
+    return (
+      <div
+        key={date}
+        className="border border-gray-300 rounded-lg px-3 py-2 bg-white shadow-sm"
+      >
+        <div className="text-xs sm:text-sm text-gray-700">
+          {/* label + content grid */}
+          <div className="grid md:grid-cols-[auto,1fr] items-start gap-y-1 md:gap-x-3">
+            {/* Date label */}
+            <div className="font-bold text-blue-700 shrink-0 pt-1">
+              {dateHeading}:
+            </div>
+
+            {/* One line per occurrence, with a little gap between lines */}
+            <div className="min-w-0 flex flex-col space-y-2">
+              {occs.map((o) => (
+                <div key={o.id} className="min-w-0 flex flex-wrap items-center gap-x-2">
+                  {/* Time range */}
+                  <span className="whitespace-nowrap">{formatTime(o)}</span>
+
+                  {/* Light blue pill with the section text (from location) */}
+                  <span className="inline-flex items-center rounded-full bg-blue-50 text-blue-700 border border-blue-200 px-2 py-0.5 font-normal">
+                    {o.location}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
-        );
-      })}
-    </div>
+        </div>
+      </div>
+    );
+  })}
+</div>
+
   </div>
 )}
 
