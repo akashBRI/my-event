@@ -33,6 +33,14 @@ interface EventDetail {
   }>;
 }
 
+type Occurrence = {
+  id: string;
+  eventId: string;
+  startTime: string; // ISO string
+  endTime?: string | null;
+  location?: string | null;
+};
+
 export default function EventDetailsPage({ params }: { params: { id: string } }) {
   const router = useRouter();
   const { id } = params;
@@ -200,8 +208,8 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
     });
 
     // Sort per day
-    const occs = [...occurrences].sort(
-      (a, b) => new Date(a.startTime) - new Date(b.startTime)
+    const occs = [...(occurrences as Occurrence[])].sort(
+      (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
     );
 
     const formatTime = (occ) => {
