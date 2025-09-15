@@ -212,7 +212,7 @@ export default function EventDetailsPage({ params }: { params: { id: string } })
       (a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime()
     );
 
-    const formatTime = (occ) => {
+    const formatTime = (occ: Occurrence): string => {
       const start = new Date(occ.startTime).toLocaleTimeString(undefined, {
         hour: "2-digit",
         minute: "2-digit",
