@@ -34,7 +34,7 @@ export default function RegistrationsPage() {
   useEffect(() => {
     try {
       if (sessionStorage.getItem(STORAGE_KEY) === "granted") setAccessGranted(true);
-    } catch {}
+    } catch { }
     setPinLoading(false);
   }, []);
 
@@ -163,7 +163,7 @@ function RegistrationsContent() {
     params.append("sortBy", String(sortConfig.key));
     params.append("sortDirection", sortConfig.direction);
     if (filters.status) params.append("status", filters.status);
-    if (filters.eventId)  params.append("eventId",  filters.eventId);
+    if (filters.eventId) params.append("eventId", filters.eventId);
     if (filters.sessionId) params.append("sessionId", filters.sessionId);
     if (searchTerm) params.append("searchTerm", searchTerm);
     return params;
@@ -430,13 +430,20 @@ function RegistrationsContent() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{new Date(reg.registrationDate).toLocaleString()}</td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                          reg.status === "registered" ? "bg-blue-100 text-blue-800" :
-                          reg.status === "checked-in" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
-                        }`}>{reg.status}</span>
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${reg.status === "registered" ? "bg-blue-100 text-blue-800" :
+                            reg.status === "checked-in" ? "bg-green-100 text-green-800" : "bg-red-100 text-red-800"
+                          }`}>{reg.status}</span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <Link href={`/api/event-pass-pdf/${reg.passId}`} className="text-blue-600 hover:underline">{reg.passId}</Link>
+                        <Link
+                          href={`/api/event-pass-pdf/${reg.passId}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          {reg.passId}
+                        </Link>
+
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-left text-sm font-medium">
                         <div className="flex items-center gap-2">
