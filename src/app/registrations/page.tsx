@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, useMemo } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import Link from "next/link";
 import { toast } from "react-hot-toast";
 import axiosInstance from "@/lib/api";
@@ -137,7 +137,6 @@ export default function RegistrationsPage() {
     );
   }
 
-  // Only mount the data-heavy child after PIN is verified (prevents hooks-order issues)
   return <RegistrationsContent />;
 }
 
@@ -162,7 +161,7 @@ function RegistrationsContent() {
     occurrences: ApiEvent["occurrences"];
   }
 
-  /* ---- Filters ---- */
+  /* ---- Filters (client-side only) ---- */
   interface FilterConfig {
     status: string;
     eventId: string;
@@ -171,35 +170,49 @@ function RegistrationsContent() {
 
   /* ---- State ---- */
   const [events, setEvents] = useState<EventItem[]>([]);
-  const [rows, setRows] = useState<Registration[]>([]);
+  const [allRows, setAllRows] = useState<Registration[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [total, setTotal] = useState(0);
 
-  // Pagination
+  // Client-side pagination (default to 10,000)
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(10000);
 
-  // Filters / Sorting / Search
+  // Filters / Sorting (client-side)
   const [filters, setFilters] = useState<FilterConfig>({ status: "", eventId: "", sessionId: "" });
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "registrationDate", direction: "descending" });
-  const [searchTerm, setSearchTerm] = useState("");
 
-  // UI bits
+  // Live search
+  const [searchInput, setSearchInput] = useState("");
+
+  // Jump box
+  const [jumpPassId, setJumpPassId] = useState("");
+  const [jumpBusy, setJumpBusy] = useState(false);
+
+  // Row UI
   const [expandedRowId, setExpandedRowId] = useState<string | null>(null);
   const toggleExpand = (id: string) => setExpandedRowId((prev) => (prev === id ? null : id));
   const [resendingEmailId, setResendingEmailId] = useState<string | null>(null);
 
-  // Edit/Delete modal state
+  // Edit/Delete modals
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [registrationToDelete, setRegistrationToDelete] = useState<string | null>(null);
-
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingRegistration, setEditingRegistration] = useState<Registration | null>(null);
   const [editFormData, setEditFormData] = useState<{ status?: string }>({});
   const [editErrors, setEditErrors] = useState<{ status?: string }>({});
 
-  /* ---- Helpers ---- */
+  /* ---- Helpers (robust normalization) ---- */
+  // Replace all common Unicode dashes with a regular hyphen
+  const normalizeDash = (s: string | null | undefined) => (s ?? "").replace(/[‐-‒–—―]/g, "-");
+  // Lowercase & strip non-alphanumerics (after dash normalization)
+  const normalize = (s: string | null | undefined) => normalizeDash(s).toLowerCase().replace(/[^a-z0-9]/g, "");
+  // Digits only (after dash normalization)
+  const onlyDigits = (s: string | null | undefined) => normalizeDash(s).replace(/\D/g, "");
+  // Remove zero-width characters; trim
+  const stripInvisibles = (s: string | null | undefined) => (s ?? "").replace(/[\u200B-\u200D\u2060\uFEFF]/g, "").trim();
+  const isEmpty = (s: string | null | undefined) => !s || s.trim().length === 0;
+
   const formatOccurrenceSummary = (reg: Registration) => {
     if (!reg.selectedOccurrences?.length) return "N/A";
     const first = reg.selectedOccurrences[0].occurrence;
@@ -207,20 +220,7 @@ function RegistrationsContent() {
     return `${firstStr}${first.location ? ` (${first.location})` : ""}`;
   };
 
-  const buildParams = (override?: Partial<{ page: number; limit: number }>) => {
-    const params = new URLSearchParams();
-    params.append("page", String(override?.page ?? currentPage));
-    params.append("limit", String(override?.limit ?? itemsPerPage));
-    params.append("sortBy", String(sortConfig.key));
-    params.append("sortDirection", sortConfig.direction);
-    if (filters.status) params.append("status", filters.status);
-    if (filters.eventId) params.append("eventId", filters.eventId);
-    if (filters.sessionId) params.append("sessionId", filters.sessionId);
-    if (searchTerm) params.append("searchTerm", searchTerm);
-    return params;
-  };
-
-  /* ---- Data fetching ---- */
+  /* ---- Fetch everything once ---- */
   const fetchEvents = useCallback(async () => {
     try {
       const res = await axiosInstance.get<ApiEvent[]>(`/api/events`);
@@ -232,26 +232,17 @@ function RegistrationsContent() {
         ),
       }));
       setEvents([{ id: "", name: "All events", occurrences: [] }, ...mapped]);
-
-      // If selected event vanished, reset selection
-      if (filters.eventId && !mapped.some((ev) => ev.id === filters.eventId)) {
-        setFilters((prev) => ({ ...prev, eventId: "", sessionId: "" }));
-      }
     } catch {
       toast.error("Failed to load events.");
     }
-  }, [filters.eventId]);
+  }, []);
 
-  const fetchRegistrations = useCallback(async () => {
+  const fetchAllRegistrations = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const params = buildParams();
-      const res = await axiosInstance.get<{ data: Registration[]; total: number }>(
-        `/api/registrations?${params.toString()}`
-      );
-      setRows(res.data.data);
-      setTotal(res.data.total);
+      const res = await axiosInstance.get<{ data: Registration[]; total: number }>("/api/registrations/all");
+      setAllRows(res.data.data);
     } catch (err: any) {
       const msg = err?.response?.data?.error || "Failed to load registrations.";
       setError(msg);
@@ -259,17 +250,14 @@ function RegistrationsContent() {
     } finally {
       setLoading(false);
     }
-  }, [currentPage, itemsPerPage, sortConfig, filters, searchTerm]);
+  }, []);
 
   useEffect(() => {
     fetchEvents();
-  }, [fetchEvents]);
+    fetchAllRegistrations();
+  }, [fetchEvents, fetchAllRegistrations]);
 
-  useEffect(() => {
-    fetchRegistrations();
-  }, [fetchRegistrations]);
-
-  /* ---- Derived session options from selected event ---- */
+  /* ---- Session options from selected event ---- */
   const sessionOptions = useMemo(() => {
     const selectedEvent = events.find((e) => e.id === filters.eventId);
     const base = [{ id: "", label: "All sessions" }];
@@ -285,12 +273,118 @@ function RegistrationsContent() {
     ];
   }, [events, filters.eventId]);
 
-  // If selected session is no longer valid (event changed), clear it
   useEffect(() => {
     if (filters.sessionId && !sessionOptions.some((s) => s.id === filters.sessionId)) {
       setFilters((prev) => ({ ...prev, sessionId: "" }));
     }
   }, [sessionOptions, filters.sessionId]);
+
+  /* ---- Client-side filter + live search + sort ---- */
+  const filteredSorted = useMemo(() => {
+    let data = [...allRows];
+
+    // Filters
+    if (filters.status) data = data.filter((r) => r.status === filters.status);
+    if (filters.eventId) data = data.filter((r) => r.event.id === filters.eventId);
+    if (filters.sessionId) {
+      data = data.filter((r) => r.selectedOccurrences.some((so) => so.occurrence.id === filters.sessionId));
+    }
+
+    // Live search (as-you-type)
+    const rawQuery = stripInvisibles(searchInput);
+    const query = normalizeDash(rawQuery).trim(); // normalize dashes, trim spaces
+
+    if (!isEmpty(query)) {
+      const q = query.toLowerCase();
+      const nq = normalize(query);
+      const dq = onlyDigits(query);
+
+      // optional: same-day date match
+      const ts = Date.parse(query);
+      const dateMatch = !Number.isNaN(ts) ? { start: new Date(ts) } : null;
+
+      if (dateMatch) {
+        dateMatch.start.setHours(0, 0, 0, 0);
+        const end = new Date(dateMatch.start);
+        end.setDate(end.getDate() + 1);
+        data = data.filter((r) => {
+          const d = new Date(r.registrationDate);
+          return d >= dateMatch.start && d < end;
+        });
+      } else {
+        data = data.filter((r) => {
+          const name = `${r.user.firstName ?? ""} ${r.user.lastName ?? ""}`.toLowerCase();
+          const sessionsStr = r.selectedOccurrences
+            .map((so) => `${(so.occurrence.location ?? "").toLowerCase()}`)
+            .join(" | ");
+
+          // PASS ID: exact-first (case/format-insensitive), then fuzzy
+          const passRaw = stripInvisibles(r.passId);
+          const passLower = normalizeDash(passRaw).toLowerCase();
+          const passNorm = normalize(passRaw);
+          const passDigits = onlyDigits(passRaw);
+
+          const passExact = passLower === q || passNorm === nq;
+          const passFuzzy = passLower.includes(q) || passNorm.includes(nq) || (dq.length > 0 && passDigits.includes(dq));
+
+          return (
+            passExact ||
+            passFuzzy ||
+            name.includes(q) ||
+            (r.user.email?.toLowerCase() ?? "").includes(q) ||
+            (r.user.company?.toLowerCase() ?? "").includes(q) ||
+            r.event.name.toLowerCase().includes(q) ||
+            r.event.location?.toLowerCase().includes(q) ||
+            sessionsStr.includes(q) ||
+            r.status.toLowerCase().includes(q)
+          );
+        });
+      }
+    }
+
+    // Sort
+    const dir = sortConfig.direction === "ascending" ? 1 : -1;
+    data.sort((a, b) => {
+      const key = sortConfig.key;
+      let av: any, bv: any;
+
+      if (key === "registrationDate") {
+        av = new Date(a.registrationDate).getTime();
+        bv = new Date(b.registrationDate).getTime();
+      } else if (key === "status") {
+        av = a.status;
+        bv = b.status;
+      } else if (key === "event.name") {
+        av = a.event.name;
+        bv = b.event.name;
+      } else if (key === "user.email") {
+        av = a.user.email;
+        bv = b.user.email;
+      } else if (key === "user.firstName") {
+        av = a.user.firstName ?? "";
+        bv = b.user.firstName ?? "";
+      } else {
+        av = (a as any)[key];
+        bv = (b as any)[key];
+      }
+
+      if (av == null && bv == null) return 0;
+      if (av == null) return -1 * dir;
+      if (bv == null) return 1 * dir;
+
+      if (typeof av === "number" && typeof bv === "number") return (av - bv) * dir;
+      return String(av).localeCompare(String(bv)) * dir;
+    });
+
+    return data;
+  }, [allRows, filters, searchInput, sortConfig]);
+
+  // Client-side pagination slice
+  const total = filteredSorted.length;
+  const pagedRows = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return filteredSorted.slice(start, start + itemsPerPage);
+  }, [filteredSorted, currentPage, itemsPerPage]);
 
   /* ---- Handlers ---- */
   const handleItemsPerPageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -308,7 +402,7 @@ function RegistrationsContent() {
     setCurrentPage(1);
   };
 
-  const requestSort = (key: keyof Registration | "user.firstName" | "user.email" | "event.name") => {
+  const requestSort = (key: SortConfig["key"]) => {
     let direction: SortConfig["direction"] = "ascending";
     if (sortConfig.key === key && sortConfig.direction === "ascending") direction = "descending";
     setSortConfig({ key, direction });
@@ -336,16 +430,13 @@ function RegistrationsContent() {
   const confirmDelete = async () => {
     if (!registrationToDelete) return;
     try {
-      setLoading(true);
       await axiosInstance.delete(`/api/registrations/${registrationToDelete}`);
+      setAllRows((prev) => prev.filter((r) => r.id !== registrationToDelete));
       setShowDeleteConfirm(false);
       setRegistrationToDelete(null);
       toast.success("Registration deleted");
-      await fetchRegistrations();
     } catch (e: any) {
       toast.error(e?.response?.data?.error || "Failed to delete");
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -366,30 +457,76 @@ function RegistrationsContent() {
     if (Object.keys(errs).length) return;
 
     try {
-      setLoading(true);
-      await axiosInstance.patch(`/api/registrations/${editingRegistration?.id}`, {
-        status: editFormData.status,
-      });
+      const id = editingRegistration?.id as string;
+      await axiosInstance.patch(`/api/registrations/${id}`, { status: editFormData.status });
+
+      setAllRows((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status: editFormData.status as string } : r))
+      );
+
       toast.success("Registration updated");
       setShowEditModal(false);
       setEditingRegistration(null);
       setEditFormData({});
-      await fetchRegistrations();
     } catch (e: any) {
       toast.error(e?.response?.data?.error || "Failed to update");
-    } finally {
-      setLoading(false);
     }
   };
 
-  // Excel export (session-aware)
-  const exportExcel = async () => {
+  /* ===== Jump to Pass ID → auto check-in → open PDF ===== */
+  const checkInAndOpen = async (reg: Registration, indexInAll: number) => {
+    // ensure row is visible in the table
+    setFilters({ status: "", eventId: "", sessionId: "" });
+    setSearchInput(stripInvisibles(reg.passId));
+    const page = Math.floor(indexInAll / itemsPerPage) + 1;
+    setCurrentPage(page);
+
+    const tab = window.open("about:blank", "_blank", "noopener,noreferrer");
+    setJumpBusy(true);
     try {
-      const params = buildParams({ page: 1, limit: 100000 });
-      const res = await axiosInstance.get<{ data: Registration[]; total: number }>(
-        `/api/registrations?${params.toString()}`
-      );
-      const regs = res.data.data;
+      if (reg.status !== "checked-in") {
+        await axiosInstance.patch(`/api/registrations/${reg.id}`, { status: "checked-in" });
+        setAllRows((prev) => prev.map((r) => (r.id === reg.id ? { ...r, status: "checked-in" } : r)));
+        toast.success(`${reg.passId} checked-in`);
+      }
+      const url = `/api/event-pass-pdf/${encodeURIComponent(stripInvisibles(reg.passId))}`;
+      if (tab) tab.location.href = url;
+      else window.open(url, "_blank", "noopener,noreferrer");
+    } catch (e: any) {
+      toast.error(e?.response?.data?.error || "Failed to check-in / open pass");
+      if (tab && !tab.closed) tab.close();
+    } finally {
+      setJumpBusy(false);
+    }
+  };
+
+  const jumpToPassIdAndCheckIn = useCallback(async () => {
+    const raw = stripInvisibles(jumpPassId);
+    if (!raw) return;
+
+    const targetNorm = normalize(raw);
+    let idx = allRows.findIndex((r) => normalize(stripInvisibles(r.passId)) === targetNorm);
+
+    if (idx < 0) {
+      // Fallback: digits-only (so “1181” → “BRI-1181”)
+      const digits = onlyDigits(raw);
+      if (digits) {
+        idx = allRows.findIndex((r) => onlyDigits(stripInvisibles(r.passId)).includes(digits));
+      }
+    }
+
+    if (idx < 0) {
+      toast.error(`Pass ID "${raw}" not found`);
+      return;
+    }
+
+    await checkInAndOpen(allRows[idx], idx);
+  }, [jumpPassId, allRows, itemsPerPage]);
+
+  // Excel export (CURRENT filtered list)
+  const exportExcel = () => {
+    try {
+      const regs = filteredSorted;
 
       const registrationsSheet = regs.map((r) => ({
         Event: r.event.name,
@@ -440,7 +577,7 @@ function RegistrationsContent() {
       const selectedEvent = events.find((e) => e.id === filters.eventId)?.name ?? "AllEvents";
       const selectedSessionLabel =
         (filters.sessionId &&
-          sessionOptions.find((s) => s.id === filters.sessionId)?.label?.replace(/[^\w\- ]]+/g, "")) ||
+          sessionOptions.find((s) => s.id === filters.sessionId)?.label?.replace(/[^\w\- ]+/g, "")) ||
         "AllSessions";
 
       XLSX.writeFile(wb, `registrations_${selectedEvent}_${selectedSessionLabel}.xlsx`);
@@ -454,7 +591,7 @@ function RegistrationsContent() {
   if (loading) {
     return (
       <div className="flex h-screen w-screen items-center justify-center bg-gray-50">
-        <div className="text-xl font-semibold text-black">Loading Registrations...</div>
+        <div className="text-xl font-semibold text-black">Loading all registrations…</div>
       </div>
     );
   }
@@ -493,17 +630,17 @@ function RegistrationsContent() {
               id="itemsPerPage"
               value={itemsPerPage}
               onChange={handleItemsPerPageChange}
-              className="mt-1 block w-24 border p-2 rounded-md text-black border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
+              className="mt-1 block w-28 border p-2 rounded-md text-black border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm"
             >
-              <option value={10}>10</option>
-              <option value={25}>25</option>
               <option value={50}>50</option>
               <option value={100}>100</option>
+              <option value={1000}>1000</option>
+              <option value={10000}>10000</option>
             </select>
           </div>
         </div>
 
-        {/* Filters */}
+        {/* Filters & Live Search */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700">Event</label>
@@ -552,19 +689,33 @@ function RegistrationsContent() {
             </select>
           </div>
 
+          {/* LIVE Search input */}
           <div>
             <label className="block text-sm font-medium text-gray-700">Search registration</label>
-            <input
-              value={searchTerm}
-              onChange={(e) => {
-                setSearchTerm(e.target.value);
-                setCurrentPage(1);
-              }}
-              placeholder="Name, email, event, pass, session…"
-              className="mt-1 block w-full rounded-md border p-2 border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm text-black"
-            />
+            <div className="mt-1 flex gap-2">
+              <input
+                value={searchInput}
+                onChange={(e) => {
+                  setSearchInput(e.target.value);
+                  setCurrentPage(1);
+                }}
+                placeholder="Type to filter... name, email…"
+                className="flex-1 rounded-md border p-2 border-gray-300 shadow-sm focus:border-black focus:ring-black sm:text-sm text-black"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchInput("");
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-2 rounded-md border border-gray-300 text-gray-500 hover:bg-gray-50 text-sm"
+              >
+                Clear
+              </button>
+            </div>
           </div>
         </div>
+
 
         {/* Table */}
         <div className="overflow-x-auto rounded-lg shadow-sm border border-gray-200">
@@ -616,14 +767,14 @@ function RegistrationsContent() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {rows.length === 0 ? (
+              {pagedRows.length === 0 ? (
                 <tr>
                   <td colSpan={9} className="px-6 py-4 text-center text-sm text-gray-500">
                     No registrations found.
                   </td>
                 </tr>
               ) : (
-                rows.map((reg) => {
+                pagedRows.map((reg) => {
                   const count = reg.selectedOccurrences.length;
                   return (
                     <React.Fragment key={reg.id}>
@@ -656,9 +807,7 @@ function RegistrationsContent() {
                                 title={expandedRowId === reg.id ? "Collapse details" : "Expand details"}
                               >
                                 <ChevronDown
-                                  className={`h-4 w-4 transition-transform ${
-                                    expandedRowId === reg.id ? "rotate-180" : ""
-                                  }`}
+                                  className={`h-4 w-4 transition-transform ${expandedRowId === reg.id ? "rotate-180" : ""}`}
                                 />
                               </button>
                             )}
@@ -714,9 +863,7 @@ function RegistrationsContent() {
                               onClick={() => handleResendEmail(reg.id)}
                               disabled={resendingEmailId === reg.id}
                               className={`inline-flex h-8 w-8 items-center justify-center rounded-md border border-gray-300 ${
-                                resendingEmailId === reg.id
-                                  ? "text-gray-400 cursor-not-allowed"
-                                  : "text-gray-700 hover:bg-gray-50"
+                                resendingEmailId === reg.id ? "text-gray-400 cursor-not-allowed" : "text-gray-700 hover:bg-gray-50"
                               }`}
                               title="Resend Email"
                             >
