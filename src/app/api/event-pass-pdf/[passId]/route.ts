@@ -82,7 +82,7 @@ export async function GET(req: Request, { params }: Params) {
     const barcodeImage = await pdfDoc.embedPng(Uint8Array.from(barcodeImageBuffer));
 
     let headerImage: any = null;
-    const publicImagePath = path.join(process.cwd(), 'public', 'pdf.png');
+    const publicImagePath = path.join(process.cwd(), 'public', 'pdf_1.png');
     try {
         // Check if the file exists before attempting to read it
         await fs.access(publicImagePath, fs.constants.F_OK);
@@ -90,7 +90,7 @@ export async function GET(req: Request, { params }: Params) {
         // Corrected: Convert headerImageBytes Buffer to Uint8Array
         headerImage = await pdfDoc.embedPng(Uint8Array.from(headerImageBytes));
     } catch (e: any) {
-        console.warn(`Failed to load header image 'public/pdf.png'. Path: ${publicImagePath}. Error Type: ${e.code || 'Unknown'}. Message: ${e.message}`);
+        console.warn(`Failed to load header image 'public/pdf_1.png'. Path: ${publicImagePath}. Error Type: ${e.code || 'Unknown'}. Message: ${e.message}`);
         // Fallback behavior if image fails to load (a simple blue rectangle with text as a placeholder)
     }
 
